@@ -1,1 +1,8 @@
+title: 学习笔记
+author: fengguangtu
+email: fengguangtu@gmail.com
+description: > # this means to ignore newlines until "show_excerpts:"
+  记录，总结.
+
+show_excerpts: true # set to true to show excerpts on the homepage
 theme: minima
