@@ -6,5 +6,6 @@ description: > # this means to ignore newlines until "show_excerpts:"
 
 show_excerpts: true # set to true to show excerpts on the homepage
 header_pages:
+ - categories.html
  - about.md
 theme: minima
