@@ -46,10 +46,8 @@ ul, #myUL {
     <div id="#{{ category_name | slugize }}"></div>
     <p></p>
     <li>
-      <span class="caret">
-        <h3 class="category-head">{{ category_name }}</h3>
+        <h3 class="category-head" class="caret">{{ category_name }}</h3>
         <a name="{{ category_name | slugize }}"></a>
-      </span>
       <ul class="nested">
         {% for post in site.categories[category_name] %}
         <li>
