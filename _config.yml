@@ -1,1 +1,5 @@
 theme: jekyll-theme-so-simple
+skin: "/assets/css/skins/default.css"
+locale: en-US
+title: "My Awesome Site"
+description: "It really is the best."
