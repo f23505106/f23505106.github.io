@@ -38,28 +38,11 @@ ul, #myUL {
   display: block;
 }
 </style>
-<div id="archives">
-<ul id="myUL">
 {% for category in site.categories %}
-  <div class="archive-group">
-    {% capture category_name %}{{ category | first }}{% endcapture %}
-    <div id="#{{ category_name | slugize }}"></div>
-    <p></p>
-    <li>
-      <span class="caret">
-        <span class="category-head">{{ category_name }}</span>
-      </span>
-      <ul class="nested">
-        {% for post in site.categories[category_name] %}
-        <li>
-          <article class="archive-item">
-            <h4><a href="{{ site.baseurl }}{{ post.url }}">{{post.title}}</a></h4>
-          </article>
-        </li>
-        {% endfor %}
-      </ul>
-    </li>
-  </div>
+  <h3>{{ category[0] }}</h3>
+  <ul>
+    {% for post in category[1] %}
+      <li><a href="{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+  </ul>
 {% endfor %}
-</ul>
-</div>
