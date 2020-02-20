@@ -3,8 +3,41 @@ layout: page
 permalink: /categories/
 title: Categories
 ---
+<style type="text/css">
+ul, #myUL {
+  list-style-type: none;
+}
 
+#myUL {
+  margin: 0;
+  padding: 0;
+}
 
+.caret {
+  cursor: pointer;
+}
+
+.caret::before {
+  content: "\25B6";
+  color: black;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.caret-down::before {
+  -ms-transform: rotate(90deg); /* IE 9 */
+  -webkit-transform: rotate(90deg); /* Safari */'
+  transform: rotate(90deg);  
+}
+
+.nested {
+  display: none;
+}
+
+.active {
+  display: block;
+}
+</style>
 <div id="archives">
 <ul id="myUL">
 {% for category in site.categories %}
