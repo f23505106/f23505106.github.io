@@ -2,7 +2,7 @@
 layout: post
 title: "静态博客系统搭建使用nginx+gunicorn+flask+jekyll"
 categories: [markdown,服务器]
-header-img: "img/post-bg-universe.jpg"
+header-img: "img/post-bg-os-metro.jpg"
 tags:
   - markdown
   - 服务器
