@@ -12,11 +12,13 @@ description: "岁月不居，时节如流"
 	</a>
 	
 	<div id='tag_cloud' class="tags js-tags">
+		{% octicon calendar  %} 
 		<a class="tag-button--all" data-encode="">
-			{% octicon calendar  %} {{ post.date | date: "%B %-d, %Y.  " }}
+			{{ post.date | date: "%B %-d, %Y.  " }}
 		</a>
+		{% octicon tag %}
 		{% for tag in post.tags %}
-        	<a class="tag-button--all" href="{{ site.baseurl }}/archive/?tag={{ tag | url_encode }}">{% octicon tag %}{{ tag }}</a>
+        	<a class="tag-button--all" href="{{ site.baseurl }}/archive/?tag={{ tag | url_encode }}">{{ tag }}</a>
     	{% endfor %}
 	</div>
 	
