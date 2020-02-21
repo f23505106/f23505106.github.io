@@ -9,12 +9,12 @@ description: "岁月不居，时节如流"
         <h2 class="post-title">
             {{ post.title }}
         </h2>
+		{% octicon calendar  %} {{ post.date | date: "%B %-d, %Y" }}
         {% if post.subtitle %}
         <h3 class="post-subtitle">
             {{ post.subtitle }}
         </h3>
         {% endif %}
-		{% octicon alert height:32 class:"right left" aria-label:hi %}
         <div class="post-content-preview">
             {% if post.lang == 'en' %}
                 {{ post.content | strip_html | truncate:300 }}
