@@ -9,7 +9,7 @@ description: "岁月不居，时节如流"
         <h2 class="post-title">
             {{ post.title }}
         </h2>
-		{% octicon calendar  %} {{ post.date | date: "%B %-d, %Y" }}
+		{% octicon calendar  %} {{ post.date | date: "%B %-d, %Y" }} {% octicon tag %} {{ post.tags  }}
         {% if post.subtitle %}
         <h3 class="post-subtitle">
             {{ post.subtitle }}
