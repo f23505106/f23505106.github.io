@@ -63,7 +63,9 @@ $$m^{\phi(n)} \equiv 1\pmod n$$
 
 $$m^{\phi(n)+1} = m \pmod n$$
 
-可以看到$\phi(n)+1$就是想得到的$e\timesd$
+可以看到`&phi;(n)+1`就是想得到的`e x d`
+
+为了方便计算
 
 
 
