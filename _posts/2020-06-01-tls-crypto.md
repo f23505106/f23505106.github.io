@@ -43,6 +43,7 @@ $$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
 $$ed \pmod \phi(n)  = 1$$
 
 $$d = \frac{k \phi(n)}{e}$$
+
 k为正整数 可以计算出d
 
 * **n和e**公钥
@@ -67,7 +68,8 @@ RSAPrivateKey ::= SEQUENCE {
 }
 ```
 
-选择如下key设置，存储为文件`my.rsa`,其他key[示例1](https://stackoverflow.com/questions/19850283/how-to-generate-rsa-keys-using-specific-input-numbers-in-openssl)[示例2](https://thatsmaths.com/2016/08/11/a-toy-example-of-rsa-encryption/)
+选择如下key设置，存储为文件`my.rsa`,其他key[示例1](https://stackoverflow.com/questions/19850283/how-to-generate-rsa-keys-using-specific-input-numbers-in-openssl)
+[示例2](https://thatsmaths.com/2016/08/11/a-toy-example-of-rsa-encryption/)
 
 ```
 asn1=SEQUENCE:rsa_key
