@@ -29,7 +29,7 @@ $$c^d \pmod n = m \tag{3}$$
 
 密钥的生成也就是找到**n e d**三个值。
 
-为了找到满足$\eqref{eq:1}$的数。找到了[欧拉定理](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Operation)
+为了找到满足$\eqref{eq:1}$的数。这里直接说结论，不进行数学的论证，找到了[欧拉定理](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Operation)及证明，[中文证明](https://www.ruanyifeng.com/blog/2013/07/rsa_algorithm_part_two.html)
 
 当m和n互质时有下面公式成立
 $$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
@@ -40,7 +40,7 @@ $$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
 
 任意选择一个质数 e e需要和`φ(n)`互质(实际常使用3或者65537方便计算)。
 
-$$ed \pmod \phi(n)  = 1$$
+$$ed \pmod {\phi(n)}  = 1$$
 
 $$d = \frac{k \phi(n)+1}{e}$$
 
