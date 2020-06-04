@@ -29,60 +29,26 @@ $$c^d \pmod n = m \tag{3}$$
 
 密钥的生成也就是找到**n e d**三个值。
 
-为了找到满足$\eqref{eq:1}$的数。
-解释（不重要，理解p和q就可以，这个会在key文件里出现）
+为了找到满足$\eqref{eq:1}$的数。找到了[欧拉定理](https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Operation)
 
-一、互质关系
+当m和n互质时有下面公式成立
+$$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
 
-如果两个正整数，除了1以外，没有其他公因子，我们就称这两个数是互质关系。比如，17和32没有公因子，所以它们是互质关系。这说明，不是质数也可以构成互质关系。
+其中`φ(n)`为欧拉函数，如果n是质数`φ(n)=n-1`，如果n可以分解为质数p q的乘积，`φ(pq)=(p-1)(q-1)`
 
-关于互质关系，不难得到以下结论：
+选择质数 p q 令 `n = pq` `φ(n)=(p-1)(q-1)` 可以被加密的数需要小于n，n即为密码的长度，常见(1024 2048)
 
-* 任意两个质数构成互质关系，比如13和61。
-* 一个数是质数，另一个数只要不是前者的倍数，两者就构成互质关系，比如3和10。
-* 如果两个数之中，较大的那个数是质数，则两者构成互质关系，比如97和57。
-* 1和任意一个自然数是都是互质关系，比如1和99。
-* p是大于1的整数，则p和p-1构成互质关系，比如57和56。
-* p是大于1的奇数，则p和p-2构成互质关系，比如17和15。
+任意选择一个质数 e e需要和`φ(n)`互质(实际常使用3或者65537方便计算)。
 
-二、欧拉函数
+$$ed \pmod \phi(n)  = 1$$
 
-任意给定正整数n，请问在小于等于n的正整数之中，有多少个与n构成互质关系？（比如，在1到8之中，有多少个数与8构成互质关系？）
-计算这个值的方法就叫做欧拉函数，以φ(n)表示。在1到8之中，与8形成互质关系的是1、3、5、7，所以 φ(n) = 4。
-如果n是质数，则 φ(n)=n-1 。因为质数与小于它的每一个数，都构成互质关系。比如5与1、2、3、4都构成互质关系
+$$d = \frac{k \phi(n)}{e}$$
+k为正整数 可以计算出d
 
-三、欧拉定理
+* **n和e**公钥
+* **n和d**私钥
 
-欧拉函数的用处，在于欧拉定理。”欧拉定理”指的是：
-如果两个正整数m和n互质，则n的欧拉函数 φ(n) 可以让下面的等式成立:
-
-$$m^{\phi(n)} \equiv 1\pmod n$$
-
-即
-
-$$m^{\phi(n)}\pmod n = 1$$
-
-借助欧拉定理，可以使找到合适的**n e d**变得简单
-
-泛化
-
-$$m^{k \phi(n)}\pmod n = 1$$
-
-k是任意整数
-
-欧拉定理两面同时乘于m的到
-
-$$m^{k \phi(n)+1} \pmod n = m$$
-
-
-可以看到**k &phi;(n)+1**就是想得到的 **e x d**
-
-
-为了方便计算**k &phi;(n)+1**取 质数**p q** 使**n=p x q**同时取质数**e**(常用3或65537)
-
-**k &phi;(n)+1 = e x d -> k(p-1)(q-1)+1 = e x d** 其中p q e为已知，k d为未知，这个方程可以用"扩展欧几里得算法"求解。
-
-**注意** e在选取时需要和 &phi;(n)互质。
+密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
 
 综合以上 在一个rsa的私钥里会存储如下信息，[rfc定义](https://tools.ietf.org/html/rfc3447#appendix-A.1.1)
 
@@ -100,17 +66,8 @@ RSAPrivateKey ::= SEQUENCE {
     otherPrimeInfos   OtherPrimeInfos OPTIONAL
 }
 ```
-对应公钥格式如下
 
-```
-RSAPublicKey:
-
-RSAPublicKey ::= SEQUENCE {
-    modulus           INTEGER,  -- n
-    publicExponent    INTEGER   -- e
-}
-```
-选择如下key设置，存储为文件`my.rsa`
+选择如下key设置，存储为文件`my.rsa`,其他key[示例1](https://stackoverflow.com/questions/19850283/how-to-generate-rsa-keys-using-specific-input-numbers-in-openssl)[示例2](https://thatsmaths.com/2016/08/11/a-toy-example-of-rsa-encryption/)
 
 ```
 asn1=SEQUENCE:rsa_key
@@ -126,7 +83,7 @@ e1=INTEGER:3
 e2=INTEGER:3
 coeff=INTEGER:1
 ```
-使用`openssl asn1parse -genconf my.rsa -out my.der`转化为der格式的文件
+使用`openssl asn1parse -genconf my.rsa -out my.der`转化为der格式的文件，[der文件格式解析](https://stackoverflow.com/questions/18039401/how-can-i-transform-between-the-two-styles-of-public-key-format-one-begin-rsa)
 对应文件内容为
 
 ```
@@ -154,9 +111,41 @@ writing RSA key
 MBsCAQACATcCAQcCARcCAQUCAQsCAQMCAQMCAQE=
 -----END RSA PRIVATE KEY-----
 ```
-最下面为对应二进制文件的base64字符串
+最下面为对应二进制文件的base64字符串即pem格式的文件的内容。
 
+随着密码学的发展，非对称加密增加了Diffie-Hellman 和 Ellicptic Curve，为了在存储时能区分具体是哪种加密方式
+引入了`oid`唯一标识符，
 
+RSA 对应的oid为 PKCS#1: 1.2.840.113549.1.1.1
+
+之前rsa公钥的asn1格式为
+
+```
+public struct RSAPublicKey {
+   INTEGER modulus,
+   INTEGER publicExponent 
+}
+```
+添加oid之后
+```
+public struct SubjectPublicKeyInfo {
+   AlgorithmIdentifier algorithm,
+   RSAPublicKey subjectPublicKey
+}
+
+SubjectPublicKeyInfo  ::=  SEQUENCE  {
+    algorithm  ::=  SEQUENCE  {
+        algorithm               OBJECT IDENTIFIER, -- 1.2.840.113549.1.1.1 rsaEncryption (PKCS#1 1)
+        parameters              ANY DEFINED BY algorithm OPTIONAL  },
+    subjectPublicKey     BIT STRING {
+        RSAPublicKey ::= SEQUENCE {
+            modulus            INTEGER,    -- n
+            publicExponent     INTEGER     -- e
+        }
+    }
+}
+```
+SubjectPublicKeyInfo可以存储所有格式的公钥
 
 
 
