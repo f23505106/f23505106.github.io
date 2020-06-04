@@ -42,7 +42,7 @@ $$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
 
 $$ed \pmod \phi(n)  = 1$$
 
-$$d = \frac{k \phi(n)}{e}$$
+$$d = \frac{k \phi(n)+1}{e}$$
 
 k为正整数 可以计算出d
 
