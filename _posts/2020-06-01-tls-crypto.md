@@ -8,7 +8,18 @@ mathjax: true
 
 ## 总览
 
-## RSA
+## 非对称加密和数字签名
+这部分的定义位于[rfc3279](https://tools.ietf.org/html/rfc3279)
+* Rivest-Shamir-Adelman (RSA)
+* Digital Signature Algorithm (DSA)
+* Elliptic Curve Digital Signature Algorithm (ECDSA)
+
+非对称加密用于密钥交换和签名，在[tls其使用如下](https://en.wikipedia.org/wiki/Transport_Layer_Security#Algorithm)
+![](https://markdown-1251303493.cos.ap-beijing.myqcloud.com/keyExTls.png)
+
+DSA(即表中的DSS)在tls 1.3已经废弃，只支持rsa和ecdsa
+
+### RSA
 rsa的数学模型如下
 
 $$m^{e \times d} \pmod n \equiv m \label{eq:1} \tag{1}$$
@@ -38,7 +49,7 @@ $$m^{\phi(n)} \equiv 1\pmod n \tag{4}$$
 
 选择质数 p q 令 `n = pq` `φ(n)=(p-1)(q-1)` 可以被加密的数需要小于n，n即为密码的长度，常见(1024 2048)
 
-任意选择一个质数 e e需要和`φ(n)`互质(实际常使用3或者65537方便计算)。
+任意选择一个质数 e， e需要和`φ(n)`互质(实际常使用3或者65537方便计算)。
 
 $$ed \pmod {\phi(n)}  = 1$$
 
@@ -49,7 +60,7 @@ k为正整数 可以计算出d
 * **n和e**公钥
 * **n和d**私钥
 
-密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
+密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
 
 综合以上 在一个rsa的私钥里会存储如下信息，[rfc定义](https://tools.ietf.org/html/rfc3447#appendix-A.1.1)
 
