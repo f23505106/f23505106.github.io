@@ -11,7 +11,7 @@ mathjax: true
 ## RSA
 rsa的数学模型如下
 
-$$m^{e \times d} \pmod n \equiv m \tag{1}$$
+$$m^{e \times d} \pmod n \equiv m \label{eq:1} \tag{1}$$
 
 加密过程
 
@@ -19,7 +19,7 @@ $$m^e \pmod n = c \tag{2}$$
 
 解秘过程
 
-$$c^d \pmod n = m$$
+$$c^d \pmod n = m \tag{3}$$
 
 其中
 * **m**待加密的消息
@@ -29,6 +29,7 @@ $$c^d \pmod n = m$$
 
 密钥的生成也就是找到**n e d**三个值。
 
+为了找到满足$\eqref{eq:1}$的数。
 解释（不重要，理解p和q就可以，这个会在key文件里出现）
 
 一、互质关系
