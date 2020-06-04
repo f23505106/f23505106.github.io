@@ -11,11 +11,11 @@ mathjax: true
 ## RSA
 rsa的数学模型如下
 
-$$m^{e \times d} \pmod n \equiv m \tag$$
+$$m^{e \times d} \pmod n \equiv m \tag{1}$$
 
 加密过程
 
-$$m^e \pmod n = c \tag$$
+$$m^e \pmod n = c \tag{2}$$
 
 解秘过程
 
