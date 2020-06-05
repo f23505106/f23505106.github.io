@@ -135,9 +135,11 @@ Malloy现在不用私钥就解出对应消息。
 还有一个问题就是直接加密相同的明文每次生成的密文也是相同的，大量观察下也能根据频率猜出信息的一部分内容。为了解决这个问题，
 只能向明文里加入随机的内容，这样就能保证相同的明文多次加密生成的密文不同，也是一种padding模式。
 
-首先提出解决这个问题并大规模使用的模式是RSAES-PKCS1-v1_5(RSA Encryption Schemes)
+首先提出解决这个问题并大规模使用的模式是RSAES-PKCS1-v1_5(RSA Encryption Schemes),该模式仍未发现有被攻破,但该模式已经不在推荐使用,
+最新推荐使用RSAES-OAEP(RSA Encryption Schemes-Optimal asymmetric encryption padding)
 
-##### RSAES-PKCS1-v1_5加密模式
+##### RSAES-PKCS1-v1_5 模式(Schemes)
+###### RSAES-PKCS1-v1_5加密模式(RSA Encryption Schemes)
 RSAES-PKCS1-V1_5-ENCRYPT ((n, e), M)
 
 **输入:**
@@ -155,24 +157,54 @@ RSAES-PKCS1-V1_5-ENCRYPT ((n, e), M)
 2. EME-PKCS1-v1_5 编码
     1. 生成一个随机的字符串PS,长度为`k - mLen - 3` byte 每个byte都不为0x00, PS最小的长度为8.
     2. 将PS和M组合生成新的长度为k的编码后的字符串EM
-        > EM = 0x00 || 0x02 || PS || 0x00 || M.
+        > `EM = 0x00 || 0x02 || PS || 0x00 || M`
 3. RSA加密
     1. 将字符串EM转化为一个整数m
     2. 使用RSAEP加密操作, 计算出代表密文的整数c
-        > c = RSAEP ((n, e), m)
+        > `c = RSAEP ((n, e), m)`
     3. 将整数c转化代表密文的长度为k的字符串C
 4. 输出密文C
 
+###### RSAES-PKCS1-v1_5解密模式(RSA Decryption Schemes)
+RSAES-PKCS1-V1_5-DECRYPT (K, C)
 
+**输入:**
+* K (n, d) RSA公钥 k表示n的二进制位数除于8,即n长度有多byte
+* C 待解密的明文信息 长度为k byte
 
+**输出:**
+* M 解密后的明文,最大长度为 k-11 byte
 
+**错误:**
+* 密文格式不对,"decryption error"
 
+**步骤:**
+1. 检查C的长度, 检查C的长度是否为k并且k要不小于11, 否则输出"decryption error",结束.
+2. RSA解密
+    1. 把C转化为一个整数c
+    2. 使用RSADP解密操作,计算出代表明文M的整数m,如果RSADP输出"ciphertext representative out of range"(c>=n)输出"decryption error",结束
+        > `m = RSADP ((n, d), c)`
+    3. 把整数m转化为字符串编码后的信息EM
+3. EME-PKCS1-v1_5 解码:
+    > 根据`EM = 0x00 || 0x02 || PS || 0x00 || M`
+    1. 如果EM第一个byte不是0x00或者第二个byte不是0x02,输出"decryption error",结束
+    2. 从第三个byte开始查找,直到导致0x00 byte为止,如果没有找到输出"decryption error",结束
+    3. 0x00后面的字符串即为M
+4. 输出明文M
 
-在实际的应用中，直接使用rsa会存在问题
+RSAES-PKCS1-V1_5很好的解决了, 之前出现的两个问题, 相同的明文加密后密文相同,和明文比较短时, 密文也短.
+但RSAES-PKCS1-V1_5也有其缺陷, 虽然没发现有大规模攻击. 一个问题是解密前后并不能验证密文是否正确,错误的密文,也可能一样
+解出结果,解出后无法发现.严格来说这是信息完整性的范畴不是加密这一步要考虑的,但实际非对称加密一般在秘密信道建立之前使用,没有完整
+的消息完整性检测机制.
 
-1. 相同的明文每次加密后生成的相同的密文
-2. 在明文比较小的时候，能直接通过密文猜出对应的明文
+对于随机产生长度为4096bit=512byte的字符串,有多大概率符合RSAES-PKCS1-V1_5格式呢, 第一位为0x00 第二位为0x02,连续超过8为不为0x00,之后至少有一个0x00对应的概率
+    >`1/256 * 1/256 * (255/256)^8 * (1 - (255/256)^502) = 1.27e-5`
+即有大概78k分之一的概率能生成合法的RSAES-PKCS1-V1_5格式,但这时解密出来的M是随机没意义的.
+RSAES-OAEP模式解决了RSAES-PKCS1-V1_5模式的这个问题,引入了类似完整性检测的机制.
 
+##### RSAES-OAEP加密模式(RSA Encryption Schemes)
+###### RSAES-OAEP 加密
+RSAES-OAEP-ENCRYPT ((n, e), M, L)
 
 
 
