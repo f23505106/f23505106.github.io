@@ -186,7 +186,7 @@ RSAES-PKCS1-V1_5-DECRYPT (K, C)
         > `m = RSADP ((n, d), c)`
     3. 把整数m转化为字符串编码后的信息EM
 3. EME-PKCS1-v1_5 解码:
-    > 根据`EM = 0x00 || 0x02 || PS || 0x00 || M`
+    > `EM = 0x00 || 0x02 || PS || 0x00 || M`
     1. 如果EM第一个byte不是0x00或者第二个byte不是0x02,输出"decryption error",结束
     2. 从第三个byte开始查找,直到导致0x00 byte为止,如果没有找到输出"decryption error",结束
     3. 0x00后面的字符串即为M
@@ -198,7 +198,9 @@ RSAES-PKCS1-V1_5很好的解决了, 之前出现的两个问题, 相同的明文
 的消息完整性检测机制.
 
 对于随机产生长度为4096bit=512byte的字符串,有多大概率符合RSAES-PKCS1-V1_5格式呢, 第一位为0x00 第二位为0x02,连续超过8为不为0x00,之后至少有一个0x00对应的概率
-    >`1/256 * 1/256 * (255/256)^8 * (1 - (255/256)^502) = 1.27e-5`
+
+    > `1/256 * 1/256 * (255/256)^8 * (1 - (255/256)^502) = 1.27e-5`
+
 即有大概78k分之一的概率能生成合法的RSAES-PKCS1-V1_5格式,但这时解密出来的M是随机没意义的.
 RSAES-OAEP模式解决了RSAES-PKCS1-V1_5模式的这个问题,引入了类似完整性检测的机制.
 
@@ -206,7 +208,30 @@ RSAES-OAEP模式解决了RSAES-PKCS1-V1_5模式的这个问题,引入了类似�
 ###### RSAES-OAEP 加密
 RSAES-OAEP-ENCRYPT ((n, e), M, L)
 
+**约定:**
+* Hash 哈希函数, hLen代表hash后生成字符串byte长度
+* MGF 类似hash函数, 输入多一个hash后的长度值, 输出的hash值为参数指定的长度
 
+**输入:**
+* (n, e) RSA的公钥, k表示公钥的byte长度
+* M 要加密的信息, 长度为mLen byte, 要求mLen <= k - 2hLen - 2
+* L 可选的信息,如果没有提供会使用空字符串
+
+**输出:**
+* C 加密后的密文, 长度为k byte
+
+**错误:**
+* "message too long"
+* "label too long"
+
+**步骤:**
+1. 检查长度
+    1. 如果L的长度超过hash函数允许的最大长度(2^61 - 1 byte for SHA-1), 输出"label too long"结束
+    2. 如果mLen > k - 2hLen - 2 输出"message too long"结束
+2. 
+
+
+###### RSAES-OAEP 解密
 
 密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
 
