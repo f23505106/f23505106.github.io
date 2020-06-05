@@ -19,7 +19,13 @@ mathjax: true
 
 DSA(即表中的DSS)在tls 1.3已经废弃，只支持rsa和ecdsa
 
+签名一般是非对称加密配合hash算法使用
 ### RSA
+
+[rsa规范](https://tools.ietf.org/html/rfc8017),详细的文档建议仔细读。
+
+#### RSA的数学原理
+
 rsa的数学模型如下
 
 $$m^{e \times d} \pmod n \equiv m \label{eq:1} \tag{1}$$
@@ -59,6 +65,34 @@ k为正整数 可以计算出d
 
 * **n和e**公钥
 * **n和d**私钥
+
+#### RSA加解密基本操作(Cryptographic Primitives)
+这里称基本操作是因为只设计加解密的数学计算，加解密模式会在基本操作基础上增加安全检查之类的过程。
+
+#####  RSA加密操作(RSAEP-RSA Encryption Primitives)
+RSAEP ((n, e), m)
+输入:
+
+* (n, e) RSA 公钥
+* m 待加密的明文, 一个整数大小在 [0, n - 1]之间
+
+输出:
+
+* c 加密后的密文，一个整数大小在 [0, n - 1]之间
+
+错误:
+
+* 如果m不在[0, n - 1]之间，"message representative out of range"
+
+默认前提:
+
+* RSA 公钥(n, e)是有效的
+
+步骤:
+
+1. 如果m不在[0, n - 1]之间，输出"message representative out of range"结束
+2. 计算$$c = m^e \pmod n
+3. 输出 c
 
 密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
 
