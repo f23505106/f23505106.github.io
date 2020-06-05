@@ -373,9 +373,11 @@ EMSA-PKCS1-v1_5-ENCODE (M, emLen)
     ```
     digestAlgorithm AlgorithmIdentifier 为Hash算法对应的oid, digest即为第一步计算出的H,使用T表示DER编码后的DigestInfo
     tLen为T的字节长度
-
-
-
+3. 如果`emLen < tLen + 11`输出"intended encoded message length too short"结束
+4. 生成PS,包含`emLen - tLen - 3`个byte的0xff,PS的最小长度为8字节
+5. 组合PS 和DER编码的T,形成待签名的字符串EM
+    > `EM = 0x00 || 0x01 || PS || 0x00 || T`
+6. 输出EM
 
 
 
