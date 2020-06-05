@@ -71,6 +71,7 @@ k为正整数 可以计算出d
 
 #####  RSA加密操作(RSAEP-RSA Encryption Primitives)
 RSAEP ((n, e), m)
+
 输入:
 
 * (n, e) RSA 公钥
@@ -91,7 +92,7 @@ RSAEP ((n, e), m)
 步骤:
 
 1. 如果m不在[0, n - 1]之间，输出"message representative out of range"结束
-2. 计算$$c = m^e \pmod n
+2. 计算$$c = m^e \pmod n$$
 3. 输出 c
 
 密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
