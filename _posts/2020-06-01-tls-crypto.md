@@ -97,6 +97,83 @@ RSADP (K, c)
 * K RSA私钥这里只讨论(n, d)这种情况
 * c 待解密密文，一个整数大小在 [0, n - 1]之间
 
+**输出:**
+* m 解密后的明文，一个整数大小在 [0, n - 1]之间
+
+**错误:**
+* 如果c不在[0, n - 1]之间，"ciphertext representative out of range"
+
+**默认前提:**
+* RSA 私钥(n, d)是有效的
+
+**步骤:**
+1. 如果c不在[0, n - 1]之间，输出"ciphertext representative out of range"结束
+2. 计算$$m = c^d \pmod n$$
+3. 输出 m
+
+签名的过程和加密类似，只是用私钥计算签名-RSASP1，用公钥验证签名-RSAVP1。
+
+#### RSA加解密模式(Cryptographic Schemes)
+加解密模式会在加解密基本操作基础上增加安全检查之类的过程。
+[举个例子](https://security.stackexchange.com/questions/183179/what-is-rsa-oaep-rsa-pss-in-simple-terms)
+
+假设rsa对应的n为4096位，这个强度已经很高了，看起来是无法破解的，假设公钥的e为3。
+现在Alice用这个公钥加密消息"No" 给Bob，对应的计算过程为
+
+* "No" => ASCII("No") => 0x4E 0x6F => m=0x4E6F
+* c = POW(0x4E6F, 3) MOD n => c = 0x75CCE07084F MOD n
+
+n有4096位比较大，c = 0x75CCE07084F小于n，取余之后是本身。监听者Mallory会看到[506 个 0x00s] 07 5C CE 07 08 4F信息传输。
+"Hmm," Mallory想这个信息很可疑，前面有太多的0，Mallory打开计算器，将0x75CCE07084F转化为十进制8095174953039，因为知道公钥的
+e为3，Malloy对8095174953039开三次方得到20079，将20079转化为16进制，得到0x4E6F，查询ASCII码表，可以得出这个消息就是"No"。
+Malloy现在不用私钥就解出对应消息。
+
+问题出在哪呢？首先可能会说e选的太小了，因为e是公开的这个并不是主要原因，开高次方虽然看起复杂，计算起来也很快。
+从加密后的信息看里面有太多的0，这才是密文被猜出的主要原因。
+为了减少密文中0的数量，需要把代表明文的整数增大，保证取余操作生效，即对明文信息进行padding。
+
+还有一个问题就是直接加密相同的明文每次生成的密文也是相同的，大量观察下也能根据频率猜出信息的一部分内容。为了解决这个问题，
+只能向明文里加入随机的内容，这样就能保证相同的明文多次加密生成的密文不同，也是一种padding模式。
+
+首先提出解决这个问题并大规模使用的模式是RSAES-PKCS1-v1_5(RSA Encryption Schemes)
+
+##### RSAES-PKCS1-v1_5加密模式
+RSAES-PKCS1-V1_5-ENCRYPT ((n, e), M)
+
+**输入:**
+* (n, e) RSA公钥 k表示n的二进制位数除于8,即n长度有多byte
+* M 待加密的明文信息 长度为mLen byte, 要求mLen <= k - 11
+
+**输出:**
+* C 加密后的密文,长度为k
+
+**错误:**
+* 如果M的长度超过k - 11,"message too long"
+
+**步骤:**
+1. 检查M的长度, 如果mLen > k - 11, 输出"message too long"结束.
+2. EME-PKCS1-v1_5 编码
+    1. 生成一个随机的字符串PS,长度为`k - mLen - 3` byte 每个byte都不为0x00, PS最小的长度为8.
+    2. 将PS和M组合生成新的长度为k的编码后的字符串EM
+        > EM = 0x00 || 0x02 || PS || 0x00 || M.
+3. RSA加密
+    1. 将字符串EM转化为一个整数m
+    2. 使用RSAEP加密操作, 计算出代表密文的整数c
+        > c = RSAEP ((n, e), m)
+    3. 将整数c转化代表密文的长度为k的字符串C
+4. 输出密文C
+
+
+
+
+
+
+在实际的应用中，直接使用rsa会存在问题
+
+1. 相同的明文每次加密后生成的相同的密文
+2. 在明文比较小的时候，能直接通过密文猜出对应的明文
+
+
 
 
 密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
