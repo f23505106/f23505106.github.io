@@ -199,7 +199,7 @@ RSAES-PKCS1-V1_5很好的解决了, 之前出现的两个问题, 相同的明文
 
 对于随机产生长度为4096bit=512byte的字符串,有多大概率符合RSAES-PKCS1-V1_5格式呢, 第一位为0x00 第二位为0x02,连续超过8为不为0x00,之后至少有一个0x00对应的概率
 
-    > `1/256 * 1/256 * (255/256)^8 * (1 - (255/256)^502) = 1.27e-5`
+    > 1/256 * 1/256 * (255/256)^8 * (1 - (255/256)^502) = 1.27e-5
 
 即有大概78k分之一的概率能生成合法的RSAES-PKCS1-V1_5格式,但这时解密出来的M是随机没意义的.
 RSAES-OAEP模式解决了RSAES-PKCS1-V1_5模式的这个问题,引入了类似完整性检测的机制.
@@ -228,7 +228,50 @@ RSAES-OAEP-ENCRYPT ((n, e), M, L)
 1. 检查长度
     1. 如果L的长度超过hash函数允许的最大长度(2^61 - 1 byte for SHA-1), 输出"label too long"结束
     2. 如果mLen > k - 2hLen - 2 输出"message too long"结束
-2. 
+2. EME-OAEP编码
+    1. 如果L没有提供, 设置L为空字符串`lHash = hash(L)`lHash是长度为hLen的字符串
+    2. 生成PS字符串, PS为长度为`k - mLen - 2hLen - 2`的全**0x00**字符串,PS长度可能为0
+    3. 组合lHash PS 0x01和M组成字符串DB, DB的长度为`k - hLen - 1`
+        > `DB = lHash || PS || 0x01 || M`
+    4. 生成随机长度为hLen的字符串seed
+    5. 计算`dbMask = MGF(seed, k - hLen - 1)`, 即dbMask是对seed计算hash, 得到的hash后字符串长度为`k - hLen - 1`
+    6. 计算`maskedDB = DB \xor dbMask`
+    7. 计算`seedMask = MGF(maskedDB, hLen)`即seedMask是对maskedDB计算hash,得到的hash后字符串长度为`hLen`
+    8. 计算`maskedSeed = seed \xor seedMask`
+    9. 组合0x00 maskedSeed和maskedDB,得到长度为k byte的EM
+        > `EM = 0x00 || maskedSeed || maskedDB`
+3. RSA加密
+    1. 计算字符串EM对应的整数值m
+    2. 使用RSAEP计算m对应公钥(n,e)加密的整数密文c
+        > c = RSAEP ((n, e), m)
+    3. 将整数密文c转化为对应字符串C
+4. 输出加密后的字符串C
+
+加密的这个流程图为
+```
+      _________________________________________________________________
+
+                                +----------+------+--+-------+
+                           DB = |  lHash   |  PS  |01|   M   |
+                                +----------+------+--+-------+
+                                               |
+                     +----------+              |
+                     |   seed   |              |
+                     +----------+              |
+                           |                   |
+                           |-------> MGF ---> xor
+                           |                   |
+                  +--+     V                   |
+                  |00|    xor <----- MGF <-----|
+                  +--+     |                   |
+                    |      |                   |
+                    V      V                   V
+                  +--+----------+----------------------------+
+            EM =  |00|maskedSeed|          maskedDB          |
+                  +--+----------+----------------------------+
+      _________________________________________________________________
+```
+
 
 
 ###### RSAES-OAEP 解密
