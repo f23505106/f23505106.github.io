@@ -247,7 +247,7 @@ RSAES-OAEP-ENCRYPT ((n, e), M, L)
     3. 将整数密文c转化为对应字符串C
 4. 输出加密后的字符串C
 
-加密的这个流程图为
+EME-OAEP编码流程图为
 ```
       _________________________________________________________________
 
@@ -271,10 +271,130 @@ RSAES-OAEP-ENCRYPT ((n, e), M, L)
                   +--+----------+----------------------------+
       _________________________________________________________________
 ```
-
-
-
 ###### RSAES-OAEP 解密
+RSAES-OAEP-DECRYPT (K, C, L)
+
+**约定:**
+* Hash 哈希函数, hLen代表hash后生成字符串byte长度
+* MGF 类似hash函数, 输入多一个hash后的长度值, 输出的hash值为参数指定的长度
+
+**输入:**
+* K RSA的私钥(n,d), k表示公钥的byte长度
+* C 要解密的信息, 长度为k byte
+* L 可选的信息,和加密时使用的信息相同,如果为提供则使用空字符串
+
+**输出:**
+* M 解密后的明文,长度为mLen, `mLen <= k - 2hLen - 2`
+
+**错误:**
+* "decryption error"
+
+**步骤:**
+1. 长度检查
+    1. 如果L的长度超过hash函数允许的最大长度(2^61 - 1 byte for SHA-1), 输出"decryption error"结束
+    2. 如果C的长度不是k byte, 输出"decryption error"结束
+    3. 如果 k < 2hLen + 2 输出"decryption error"结束
+2. RSA解密
+    1. 把字符串密文C转化为整数c
+    2. 使用RSADP解密c, 如果RSADP失败(c>=n)输出"decryption error"结束
+        > `m = RSADP (K, c)`
+    3. 把整数m转化为字符串EM
+3. EME-OAEP解码
+    1. 如果L没有提供, 设置L为空字符串`lHash = hash(L)`lHash是长度为hLen的字符串
+    2. 分割EM字符串,按照`EM = Y || maskedSeed || maskedDB`,Y长度为一字节,maskedSeed长度为hLen,maskedDB长度为`k - hLen - 1`
+    3. 计算`seedMask = MGF(maskedDB, hLen)`
+    4. 计算`seed = maskedSeed \xor seedMask`
+    5. 计算`dbMask = MGF(seed, k - hLen - 1)`
+    6. 计算`DB = maskedDB \xor dbMask`
+    7. 分割DB 按照`DB = lHash' || PS || 0x01 || M`,lHash'长度为hLen,连续的0x00到0x01(不包括0x01)为PS,0x01之后的内容为M
+        如果找不到0x01,如果lHash和lHash‘不同,如果Y不是0x00,输出"decryption error"结束
+4. 输出M
+
+EME-OAEP解码流程图为
+```
+      _________________________________________________________________
+      
+                                +----------+------+--+-------+
+                           DB = |  lHash   |  PS  |01|   M   |
+                                +----------+------+--+-------+
+                                               ^
+                     +----------+              |
+                     |   seed   |              |
+                     +----------+              |
+                           ^                   |
+                           |-------> MGF ---> xor
+                           |                   |
+                  +--+     |                   |
+                  |00|    xor <----- MGF <-----|
+                  +--+     ^                   |
+                    ^      |                   |
+                    |      |                   |
+                  +--+----------+----------------------------+
+            EM =  |00|maskedSeed|          maskedDB          |
+                  +--+----------+----------------------------+
+      _________________________________________________________________
+```
+seed的存在保证了相同的明文加密后的密文不同
+L的存储保证了整体的完整性
+
+#### RSA签名模式(Signature Schemes)
+和加解密类似,RSA的签名模式也有两种RSASSA-PKCS1-v1_5和RSASSA-PSS,RSASSA-PKCS1-v1_5已经不推荐使用,仅为了兼容,推荐使用RSASSA-PSS.
+
+##### RSASSA-PKCS1-v1_5
+RSASSA-PKCS1-v1_5使用了EMSA-PKCS1-v1_5摘要算法
+
+###### RSASSA-PKCS1-v1_5签名过程
+EMSA-PKCS1-v1_5 摘要算法
+
+EMSA-PKCS1-v1_5-ENCODE (M, emLen)
+
+**参数:**
+* Hash 哈希函数,hLen代表hash函数输出的byte长度
+
+**输入:**
+* M 待计算摘要的字符串
+* emLen 输出的byte长度,至少为tLen+11,其中tLen为T经过DER编码后的byte长度,后面会详细介绍
+
+**输出:**
+* EM 摘要值,字符串,长度为emLen byte
+
+**错误:**
+* "message too long"
+* "intended encoded message length too short"
+
+**步骤:**
+1. 计算M的hash值H,`H = Hash(M)`如果hash函数输出"message too long",输出"message too long"结束
+2. 使用asn1将hash函数的oid和H,组合后按照DER编码,[参见](https://tools.ietf.org/html/rfc8017#appendix-A.2.4)
+    ```
+    DigestInfo ::= SEQUENCE {
+        digestAlgorithm AlgorithmIdentifier,
+        digest OCTET STRING
+    }
+    ```
+    digestAlgorithm AlgorithmIdentifier 为Hash算法对应的oid, digest即为第一步计算出的H,使用T表示DER编码后的DigestInfo
+    tLen为T的字节长度
+
+
+
+
+
+
+RSASSA-PKCS1-V1_5-SIGN (K, M)
+
+**输入:**
+* k RSA私钥
+* 待签名的字符串
+
+**输出:**
+* S 签名后的字符串, 长度为k byte, k为RSA中n的byte长度
+
+**错误:**
+* "message too long"
+* "RSA modulus too short"
+
+**步骤:**
+1. 
+
 
 密钥的存储使用[asn1格式](http://luca.ntop.org/Teaching/Appunti/asn1.html) [解析](https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/)，主要有两种格式，二进制（DER），二进制base64编码(PEM)
 
