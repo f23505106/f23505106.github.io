@@ -117,9 +117,13 @@ android 1.5开始写sdcard需要[WRITE_EXTERNAL_STORAGE](https://developer.andro
      }
 ```
 首先gid从AID_SYSTEM 1000改为了AID_SDCARD_RW 1015，文件的权限为075，组用户拥有读写执行权限，其他用户只有读和执行权限没有写权限。
-对应的配置文件从mountd.conf修改为了[vold.fstab](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.0.4_r1.1/rootdir/etc/vold.fstab)。
+对应的配置文件从mountd.conf修改为了[vold.fstab](https://android.googlesource.com/device/htc/dream-sapphire/+/refs/tags/android-2.2_r1/vold.fstab)。
 
 ```
+## Vold 2.0 fstab for HTC Dream or Sapphire
+#
+## - San Mehat (san@android.com)
+## 
 #######################
 ## Regular device mount
 ##
@@ -129,38 +133,74 @@ android 1.5开始写sdcard需要[WRITE_EXTERNAL_STORAGE](https://developer.andro
 ## part         - Partition # (1 based), or 'auto' for first usable partition.
 ## <sysfs_path> - List of sysfs paths to source devices
 ######################
-## Example of a standard sdcard mount for the emulator / Dream
 # Mounts the first usable partition of the specified device
 dev_mount sdcard /mnt/sdcard auto /devices/platform/goldfish_mmc.0 /devices/platform/msm_sdcc.2/mmc_host/mmc1
-## Example of a dual card setup
-# dev_mount left_sdcard  /sdcard1  auto /devices/platform/goldfish_mmc.0 /devices/platform/msm_sdcc.2/mmc_host/mmc1
-# dev_mount right_sdcard /sdcard2  auto /devices/platform/goldfish_mmc.1 /devices/platform/msm_sdcc.3/mmc_host/mmc1
-## Example of specifying a specific partition for mounts
-# dev_mount sdcard /sdcard 2 /devices/platform/goldfish_mmc.0 /devices/platform/msm_sdcc.2/mmc_host/mmc1
+```
+
+android [2.2](https://android.googlesource.com/platform/system/core/+log/refs/tags/android-2.2_r1/rootdir/init.rc)开始, sdcard的挂载目录改为`/mnt/sdcard`，EXTERNAL_STORAGE的值也为`/mnt/sdcard`，之前的`/sdcard`最为一个链接指向`/mnt/sdcard`。
+
+```
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -12,7 +12,7 @@
+     export ANDROID_ROOT /system
+     export ANDROID_ASSETS /system/app
+     export ANDROID_DATA /data
+-    export EXTERNAL_STORAGE /sdcard
++    export EXTERNAL_STORAGE /mnt/sdcard
+     export BOOTCLASSPATH /system/framework/core.jar:/system/framework/ext.jar:/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar
+ 
+ # Backward compatibility
+@@ -20,15 +20,30 @@
+     symlink /sys/kernel/debug /d
+ 
+ # create mountpoints
+-    mkdir /sdcard 0000 system system
++    mkdir /mnt 0775 root system
++    mkdir /mnt/sdcard 0000 system system
++
++# Backwards Compat - XXX: Going away in G*
++    symlink /mnt/sdcard /sdcard
++
 ```
 //todo 获取权限加入用户组1015的过程
 
+
 android 2.3开始代码里[引入](https://android.googlesource.com/platform/system/core/+/03ee9479a4ed67689b9bbccda20c60800a38b178)了FUSE，
-初期的代码只实现了通过FUSE暴露的文件的拥有者为AID_SDCARD_RW，并没有实现对大小写文件名的处理。在[修改](https://android.googlesource.com/platform/system/core/+/51b3a2d77a3361f6088172a4a68a0111058d3aab)里把所有对文件的访问使用小写字母文件名访问。
+初期的代码只实现了通过FUSE暴露的文件的拥有者为AID_SDCARD_RW，并没有实现对大小写文件名的处理。在[修改](https://android.googlesource.com/platform/system/core/+/51b3a2d77a3361f6088172a4a68a0111058d3aab)里把所有对文件的访问使用小写字母文件名访问，后续连续出现了一下修改，将所有文件名为小写，修改为文件名可以大小写保持，但不区分大小写，主要通过`strcasecmp`[实现](https://android.googlesource.com/platform/system/core/+/6249b9009f44f2127670eda4d5aa6d5fd3e26e02%5E%21/#F1)。
 
 android 3.1开始把电脑访问sdcard的方式从UMS(usb大容量存储)访问方式修改为MTP(Media Transfer Protocol)，这样在连接电脑读取文件时不影响手机运行。
 
 android 3.2增加了AID_MEDIA_RW 1023 权限，限制只有该权限才可以读写外置的存储卡，该权限只有系统应用可以申请。
 
-android 4.0开始可以通过FUSE将/data/media目录模拟为primary external storage，这种方式在使用MTP方式之前无法实现，因为需要先umount才可以。手机厂商可以使用外置sdcard做主存储，也可以使用内部FUSE模拟的sdcard，对应的配置从init.rc转移到厂商的init.hardware.rc，作为android 4.0首款三星Galaxy Nexus使用的是外部sdcard卡槽做为主存储[配置](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.0.4_r1.1/rootdir/init.rc)如下：
+android 4.0开始可以通过FUSE将/data/media目录模拟为primary external storage，这种方式在使用MTP方式之前无法实现，因为需要先umount才可以。手机厂商可以使用外置sdcard做主存储，也可以使用内部FUSE模拟的sdcard，对应的配置从init.rc转移到厂商的init.hardware.rc，参考Nexus 4手机的配置[init.mako.rc](https://android.googlesource.com/device/lge/mako/+/refs/tags/android-4.2_r1/init.mako.rc)
 
 ```
-on early-init
-    export EXTERNAL_STORAGE /mnt/sdcard
-    mkdir /mnt/sdcard 0000 system system
-    # for backwards compatibility
-    symlink /mnt/sdcard /sdcard
+on init
+    # See storage config details at http://source.android.com/tech/storage/
+    mkdir /mnt/shell/emulated 0700 shell shell
+    mkdir /storage/emulated 0555 root root
+    export EXTERNAL_STORAGE /storage/emulated/legacy
+    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
+    export EMULATED_STORAGE_TARGET /storage/emulated
+    # Support legacy paths
+    symlink /storage/emulated/legacy /sdcard
+    symlink /storage/emulated/legacy /mnt/sdcard
+    symlink /storage/emulated/legacy /storage/sdcard0
+    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+
+    # virtual sdcard daemon running as media_rw (1023)
+    service sdcard /system/bin/sdcard /data/media /mnt/shell/emulated 1023 1023
 ```
+`/system/bin/sdcard`即为在用户态实现的文件系统，参考下图中的hello程序。
+![fuse结构图](https://upload.wikimedia.org/wikipedia/commons/0/08/FUSE_structure.svg)
+
+
 
 android 4.1增加了sdcard读取的[权限](https://developer.android.com/reference/android/Manifest.permission.html#READ_EXTERNAL_STORAGE), AID_SDCARD_R 1028
 
 
-![fuse结构图](https://en.wikipedia.org/wiki/Filesystem_in_Userspace#/media/File:FUSE_structure.svg)
+
 
 
 
