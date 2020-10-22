@@ -361,6 +361,7 @@ android 4.2开始支持多用户，修改了sdcard读取权限的实现方式，
 
 > The default platform implementation of this feature leverages Linux kernel namespaces to create isolated mount tables for each Zygote-forked process, and then uses bind mounts to offer the correct user-specific primary external storage into that private namespace.
 > 
+> 
 > At boot, the system mounts a single emulated external storage FUSE daemon at EMULATED_STORAGE_SOURCE, which is hidden from apps. After the Zygote forks, it bind mounts the appropriate user-specific subdirectory from under the FUSE daemon to EMULATED_STORAGE_TARGET so that external storage paths resolve correctly for the app. Because an app lacks accessible mount points for other users' storage, they can only access storage for the user it was started as.
 
 
