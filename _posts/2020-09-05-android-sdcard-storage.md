@@ -163,7 +163,7 @@ android [2.2](https://android.googlesource.com/platform/system/core/+log/refs/ta
 +    symlink /mnt/sdcard /sdcard
 +
 ```
-//todo 获取权限加入用户组1015的过程
+//todo 获取权限加入用户组1015的过程 https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-4.1.1_r1/data/etc/platform.xml
 
 
 android 2.3开始代码里[引入](https://android.googlesource.com/platform/system/core/+/03ee9479a4ed67689b9bbccda20c60800a38b178)了FUSE，
@@ -173,32 +173,195 @@ android 3.1开始把电脑访问sdcard的方式从UMS(usb大容量存储)访问�
 
 android 3.2增加了AID_MEDIA_RW 1023 权限，限制只有该权限才可以读写外置的存储卡，该权限只有系统应用可以申请。
 
-android 4.0开始可以通过FUSE将/data/media目录模拟为primary external storage，这种方式在使用MTP方式之前无法实现，因为需要先umount才可以。手机厂商可以使用外置sdcard做主存储，也可以使用内部FUSE模拟的sdcard，对应的配置从init.rc转移到厂商的init.hardware.rc，参考Nexus 4手机的配置[init.mako.rc](https://android.googlesource.com/device/lge/mako/+/refs/tags/android-4.2_r1/init.mako.rc)
+android 4.0开始可以通过FUSE将/data/media目录模拟为primary external storage，这种方式在使用MTP方式之前无法实现，因为需要先umount才可以。手机厂商可以使用外置sdcard做主存储，也可以使用内部FUSE模拟的sdcard. Nexus S没有外部sdcard插槽，为兼容之前版本，继续采用在内部存储上划分出一个单独的分区做sdcard分区，首先在[init.herring.rc](https://android.googlesource.com/device/samsung/crespo/+/refs/tags/android-4.0.3_r1/init.herring.rc)里配置sdcard的挂载点
 
 ```
-on init
-    # See storage config details at http://source.android.com/tech/storage/
-    mkdir /mnt/shell/emulated 0700 shell shell
-    mkdir /storage/emulated 0555 root root
-    export EXTERNAL_STORAGE /storage/emulated/legacy
-    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
-    export EMULATED_STORAGE_TARGET /storage/emulated
-    # Support legacy paths
-    symlink /storage/emulated/legacy /sdcard
-    symlink /storage/emulated/legacy /mnt/sdcard
-    symlink /storage/emulated/legacy /storage/sdcard0
-    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+on fs
+    mount ext4 /dev/block/platform/s3c-sdhci.0/by-name/system /system wait ro
+    mount ext4 /dev/block/platform/s3c-sdhci.0/by-name/userdata /data wait noatime nosuid nodev nomblk_io_submit
+    export EXTERNAL_STORAGE /mnt/sdcard
+    mkdir /mnt/sdcard 0000 system system
+    symlink /mnt/sdcard /sdcard
+```
+然后在[vold.fstab](https://android.googlesource.com/device/samsung/crespo/+/refs/tags/android-4.0.3_r1/vold.fstab)里配置具体的挂载配置。
 
-    # virtual sdcard daemon running as media_rw (1023)
-    service sdcard /system/bin/sdcard /data/media /mnt/shell/emulated 1023 1023
+```
+#######################
+## Regular device mount
+##
+## Format: dev_mount <label> <mount_point> <part> <sysfs_path1...> 
+## label        - Label for the volume
+## mount_point  - Where the volume will be mounted
+## part         - Partition # (1 based), or 'auto' for first usable partition.
+## <sysfs_path> - List of sysfs paths to source devices, must start with '/' character
+## flags        - (optional) Comma separated list of flags, must not contain '/' character
+######################
+dev_mount sdcard /mnt/sdcard 3 /devices/platform/s3c-sdhci.0/mmc_host/mmc0/mmc0:0001/block/mmcblk0 nonremovable,encryptable
+```
+
+使用FUSE的配置，参考Galaxy Nexus手机的配置[init.tuna.rc](https://android.googlesource.com/device/samsung/tuna/+/refs/tags/android-4.0.1_r1/init.tuna.rc)
+
+```
+on early-init
+	export EXTERNAL_STORAGE /mnt/sdcard
+	mkdir /mnt/sdcard 0000 system system
+	# for backwards compatibility
+	symlink /mnt/sdcard /sdcard
+
+service sdcard /system/bin/sdcard /data/media 1023 1023
+	class late_start
 ```
 `/system/bin/sdcard`即为在用户态实现的文件系统，参考下图中的hello程序。
 ![fuse结构图](https://upload.wikimedia.org/wikipedia/commons/0/08/FUSE_structure.svg)
 
+以查找文件的操作FUSE_LOOKUP为例 [sdcard.c](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.0.1_r1.2/sdcard/sdcard.c)
 
+```c
+#define MOUNT_POINT "/mnt/sdcard"
+void handle_fuse_request(struct fuse *fuse, struct fuse_in_header *hdr, void *data, unsigned len)
+{
+    struct node *node;
+    switch (hdr->opcode) {
+        case FUSE_LOOKUP: { /* bytez[] -> entry_out */
+            TRACE("LOOKUP %llx %s\n", hdr->nodeid, (char*) data);
+            lookup_entry(fuse, node, (char*) data, hdr->unique);
+            return;
+        }
+    ...
+    }
+}
+void lookup_entry(struct fuse *fuse, struct node *node,
+                  const char *name, __u64 unique)
+{
+    struct fuse_entry_out out;
+    memset(&out, 0, sizeof(out));
+    node = node_lookup(fuse, node, name, &out.attr);
+    if (!node) {
+        fuse_status(fuse, unique, -ENOENT);
+        return;
+    }
+    fuse_reply(fuse, unique, &out, sizeof(out));
+}
+
+struct node *node_lookup(struct fuse *fuse, struct node *parent, const char *name,
+                         struct fuse_attr *attr)
+{
+    int res;
+    struct stat s;
+    char *path, buffer[PATH_BUFFER_SIZE];
+    struct node *node;
+    path = node_get_path(parent, buffer, name);
+}
+char *node_get_path(struct node *node, char *buf, const char *name)
+{
+    /* We look for case insensitive matches by default */
+    return do_node_get_path(node, buf, name, CASE_SENSITIVE_MATCH);
+}
+char *do_node_get_path(struct node *node, char *buf, const char *name, int match_case_insensitive)
+{
+    if (in_name && match_case_insensitive && access(out, F_OK) != 0) {
+        while ((entry = readdir(dir))) {
+            if (!strcasecmp(entry->d_name, in_name)) {//这里使用忽略大小写的查找方式找到对应文件
+                /* we have a match - replace the name */
+                len = strlen(in_name);
+                memcpy(buf + PATH_BUFFER_SIZE - len - 1, entry->d_name, len);
+                break;
+            }
+        }
+        closedir(dir);
+    }
+   return out;
+}
+```
+在FUSE的中介作用下，通过sdcard目录进行读写需要sdcard_rw权限，在真正写到/data/media目录时使用的是media_rw权限。
+
+```
+generic_x86_64:/ # ls -l /data/media/0                                                                          
+total 88
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Alarms
+drwxrwxr-x 5 media_rw media_rw 4096 2020-09-01 17:26 Android
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 DCIM
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Download
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Movies
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Music
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Notifications
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Pictures
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Podcasts
+drwxrwxr-x 2 media_rw media_rw 4096 2020-09-01 11:16 Ringtones
+-rw-rw-r-- 1 media_rw media_rw    3 2020-09-02 10:44 test.txt
+generic_x86_64:/ # ls -l /sdcard/                                                                               
+total 88
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Alarms
+drwxrwx--x 5 root sdcard_rw 4096 2020-09-01 17:26 Android
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 DCIM
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Download
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Movies
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Music
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Notifications
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Pictures
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Podcasts
+drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Ringtones
+-rw-rw---- 1 root sdcard_rw    3 2020-09-02 10:44 test.txt
+```
 
 android 4.1增加了sdcard读取的[权限](https://developer.android.com/reference/android/Manifest.permission.html#READ_EXTERNAL_STORAGE), AID_SDCARD_R 1028
+增加/storage目录，使用AID_SDCARD_R控制目录的可执行权限，来实现对sdcard上文件读取的控制。[init.tuna.rc](https://android.googlesource.com/device/samsung/tuna/+/6ad18b6e264c8e97914a15f498aaa8dfdb702f07%5E%21/init.tuna.rc),采用这种方式，[获取写sdcard的写权限时必然也获得了读权限](https://android.googlesource.com/platform/frameworks/base/+/7924512aa12c6af37d90e8ccfcdf04eb78a294a3%5E%21/#F1)。
 
+```
+ on early-init
+-	export EXTERNAL_STORAGE /mnt/sdcard
+-	mkdir /mnt/sdcard 0000 system system
++	export EXTERNAL_STORAGE /storage/sdcard0
++	mkdir /storage 0550 system sdcard_r
++	mkdir /storage/sdcard0 0000 system system
+ 	# for backwards compatibility
+-	symlink /mnt/sdcard /sdcard
++	symlink /storage/sdcard0 /sdcard
++	symlink /storage/sdcard0 /mnt/sdcard
+```
+
+android 4.2开始支持多用户，修改了sdcard读取权限的实现方式，读取sdcard的实现由[zygot通过bind mount实现](https://android.googlesource.com/device/samsung/tuna/+/a3471cd8e45f43704c882ddff985df7818971e3a%5E%21/#F0)
+
+```
+-on early-init
+-	export EXTERNAL_STORAGE /storage/sdcard0
+-	mkdir /storage 0050 system sdcard_r
+-	mkdir /storage/sdcard0 0000 system system
+-	# for backwards compatibility
+-	symlink /storage/sdcard0 /sdcard
+-	symlink /storage/sdcard0 /mnt/sdcard
++on init
++    mkdir /mnt/secure/sdcard0 0700 root root
++
++    export EXTERNAL_STORAGE /storage/sdcard0
++    mkdir /storage 0711 root root
++    mkdir /storage/sdcard0 0000 root root
++    symlink /storage/sdcard0 /sdcard
++    symlink /storage/sdcard0 /mnt/sdcard
++
++    # Save bugreports as owner
++    export BUGREPORT_WRITE_PATH /mnt/secure/sdcard0/0
++    export BUGREPORT_READ_PATH /storage/sdcard0
+ 
+ on post-fs-data
+-	# we will remap this as /storage/sdcard0 with the sdcard fuse tool
+-	mkdir /data/media 0770 media_rw media_rw
+-	chown media_rw media_rw /data/media
++    mkdir /data/media 0770 media_rw media_rw
++
+@@ -162,11 +166,9 @@
+
+-service sdcard /system/bin/sdcard /data/media /storage/sdcard0 1023 1023
+-	class late_start
++# virtual sdcard daemon running as media_rw (1023)
++service sdcard /system/bin/sdcard /data/media /mnt/secure/sdcard0 1023 1023
++    class late_start
+```
+[文档说明](https://source.android.com/devices/storage/traditional#multi-user-external-storage)
+
+> The default platform implementation of this feature leverages Linux kernel namespaces to create isolated mount tables for each Zygote-forked process, and then uses bind mounts to offer the correct user-specific primary external storage into that private namespace.
+> 
+> At boot, the system mounts a single emulated external storage FUSE daemon at EMULATED_STORAGE_SOURCE, which is hidden from apps. After the Zygote forks, it bind mounts the appropriate user-specific subdirectory from under the FUSE daemon to EMULATED_STORAGE_TARGET so that external storage paths resolve correctly for the app. Because an app lacks accessible mount points for other users' storage, they can only access storage for the user it was started as.
 
 
 
