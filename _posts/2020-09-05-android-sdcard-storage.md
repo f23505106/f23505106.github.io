@@ -308,59 +308,169 @@ android 4.1增加了sdcard读取的[权限](https://developer.android.com/refere
 增加/storage目录，使用AID_SDCARD_R控制目录的可执行权限，来实现对sdcard上文件读取的控制。[init.tuna.rc](https://android.googlesource.com/device/samsung/tuna/+/6ad18b6e264c8e97914a15f498aaa8dfdb702f07%5E%21/init.tuna.rc),采用这种方式，[获取写sdcard的写权限时必然也获得了读权限](https://android.googlesource.com/platform/frameworks/base/+/7924512aa12c6af37d90e8ccfcdf04eb78a294a3%5E%21/#F1)。
 
 ```
- on early-init
--	export EXTERNAL_STORAGE /mnt/sdcard
--	mkdir /mnt/sdcard 0000 system system
-+	export EXTERNAL_STORAGE /storage/sdcard0
-+	mkdir /storage 0550 system sdcard_r
-+	mkdir /storage/sdcard0 0000 system system
- 	# for backwards compatibility
--	symlink /mnt/sdcard /sdcard
-+	symlink /storage/sdcard0 /sdcard
-+	symlink /storage/sdcard0 /mnt/sdcard
++    /**
++     * List of permissions that have been split into more granular or dependent
++     * permissions.
++     * @hide
++     */
++    public static final PackageParser.SplitPermissionInfo SPLIT_PERMISSIONS[] =
++        new PackageParser.SplitPermissionInfo[] {
++            new PackageParser.SplitPermissionInfo(android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
++                    new String[] { android.Manifest.permission.READ_EXTERNAL_STORAGE })
++    };
++
 ```
 
 android 4.2开始支持多用户，修改了sdcard读取权限的实现方式，读取sdcard的实现由[zygot通过bind mount实现](https://android.googlesource.com/device/samsung/tuna/+/a3471cd8e45f43704c882ddff985df7818971e3a%5E%21/#F0)
 
-```
--on early-init
--	export EXTERNAL_STORAGE /storage/sdcard0
--	mkdir /storage 0050 system sdcard_r
--	mkdir /storage/sdcard0 0000 system system
--	# for backwards compatibility
--	symlink /storage/sdcard0 /sdcard
--	symlink /storage/sdcard0 /mnt/sdcard
-+on init
-+    mkdir /mnt/secure/sdcard0 0700 root root
-+
-+    export EXTERNAL_STORAGE /storage/sdcard0
-+    mkdir /storage 0711 root root
-+    mkdir /storage/sdcard0 0000 root root
-+    symlink /storage/sdcard0 /sdcard
-+    symlink /storage/sdcard0 /mnt/sdcard
-+
-+    # Save bugreports as owner
-+    export BUGREPORT_WRITE_PATH /mnt/secure/sdcard0/0
-+    export BUGREPORT_READ_PATH /storage/sdcard0
- 
- on post-fs-data
--	# we will remap this as /storage/sdcard0 with the sdcard fuse tool
--	mkdir /data/media 0770 media_rw media_rw
--	chown media_rw media_rw /data/media
-+    mkdir /data/media 0770 media_rw media_rw
-+
-@@ -162,11 +166,9 @@
+[init.tuna.rc](https://android.googlesource.com/device/samsung/tuna/+/refs/tags/android-4.2_r1/init.tuna.rc)
 
--service sdcard /system/bin/sdcard /data/media /storage/sdcard0 1023 1023
--	class late_start
-+# virtual sdcard daemon running as media_rw (1023)
-+service sdcard /system/bin/sdcard /data/media /mnt/secure/sdcard0 1023 1023
-+    class late_start
 ```
+on init
+    # See storage config details at http://source.android.com/tech/storage/
+    mkdir /mnt/shell/emulated 0700 shell shell
+    mkdir /storage/emulated 0555 root root
+    export EXTERNAL_STORAGE /storage/emulated/legacy
+    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
+    export EMULATED_STORAGE_TARGET /storage/emulated
+    # Support legacy paths
+    symlink /storage/emulated/legacy /sdcard
+    symlink /storage/emulated/legacy /mnt/sdcard
+    symlink /storage/emulated/legacy /storage/sdcard0
+    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+
+    # virtual sdcard daemon running as media_rw (1023)
+service sdcard /system/bin/sdcard /data/media /mnt/shell/emulated 1023 1023
+    class late_start
+```
+
+[init.rc](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.2_r1/rootdir/init.rc)
+
+```
+# setup the global environment
+    export ANDROID_STORAGE /storage
+    # See storage config details at http://source.android.com/tech/storage/
+    mkdir /mnt/shell 0700 shell shell
+    mkdir /storage 0050 root sdcard_r
+```
+下面的分析需要使用linux的namespace原理和bind mount的机制，可以参考[DOCKER基础技术：LINUX NAMESPACE](https://coolshell.cn/articles/17010.html)
+
+[vm/Init.cpp](https://android.googlesource.com/platform/dalvik.git/+/refs/tags/android-4.2_r1/vm/Init.cpp)
+
+```cpp
+//这里是zygot进程，这里设置影响所有从zygot孵化出的应用进程
+static bool initZygote()
+{
+    // 通过unshare表明新的进程使用的独立的Mount namespaces
+    if (unshare(CLONE_NEWNS) == -1) {
+        SLOGE("Failed to unshare(): %s", strerror(errno));
+        return -1;
+    }
+    // 使用MS_SLAVE默认namespace的挂载事件会传播到子进程
+    // 使用MS_REC递归设置子目录
+    if (mount("rootfs", "/", NULL, (MS_SLAVE | MS_REC), NULL) == -1) {
+        SLOGE("Failed to mount() rootfs as MS_SLAVE: %s", strerror(errno));
+        return -1;
+    }
+    // Create a staging tmpfs that is shared by our children; they will
+    // bind mount storage into their respective private namespaces, which
+    // are isolated from each other.
+    const char* target_base = getenv("EMULATED_STORAGE_TARGET");//init.rc 定义 /storage/emulated
+    if (target_base != NULL) {
+        if (mount("tmpfs", target_base, "tmpfs", MS_NOSUID | MS_NODEV,
+                "uid=0,gid=1028,mode=0050") == -1) {
+            SLOGE("Failed to mount tmpfs to %s: %s", target_base, strerror(errno));
+            return -1;
+        }
+    }
+    return true;
+}
+```
+[dalvik_system_Zygote.cpp](https://android.googlesource.com/platform/dalvik.git/+/refs/tags/android-4.2_r1/vm/native/dalvik_system_Zygote.cpp)
+
+```cpp
+//这里是fork后的应用进程
+static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
+    // See storage config details at http://source.android.com/tech/storage/
+    userid_t userid = multiuser_get_user_id(uid);
+    // Create a second private mount namespace for our process
+    if (unshare(CLONE_NEWNS) == -1) {
+        SLOGE("Failed to unshare(): %s", strerror(errno));
+        return -1;
+    }
+    // Create bind mounts to expose external storage
+    if (mountMode == MOUNT_EXTERNAL_MULTIUSER
+            || mountMode == MOUNT_EXTERNAL_MULTIUSER_ALL) {
+        // These paths must already be created by init.rc
+        const char* source = getenv("EMULATED_STORAGE_SOURCE");// /mnt/shell/emulated
+        const char* target = getenv("EMULATED_STORAGE_TARGET");// /storage/emulated
+        const char* legacy = getenv("EXTERNAL_STORAGE");// /storage/emulated/legacy
+        if (source == NULL || target == NULL || legacy == NULL) {
+            SLOGE("Storage environment undefined; unable to provide external storage");
+            return -1;
+        }
+        // Prepare source paths
+        char source_user[PATH_MAX];
+        char source_obb[PATH_MAX];
+        char target_user[PATH_MAX];
+        // /mnt/shell/emulated/0
+        snprintf(source_user, PATH_MAX, "%s/%d", source, userid);
+        // /mnt/shell/emulated/obb
+        snprintf(source_obb, PATH_MAX, "%s/obb", source);
+        // /storage/emulated/0
+        snprintf(target_user, PATH_MAX, "%s/%d", target, userid);
+        if (fs_prepare_dir(source_user, 0000, 0, 0) == -1
+                || fs_prepare_dir(source_obb, 0000, 0, 0) == -1
+                || fs_prepare_dir(target_user, 0000, 0, 0) == -1) {
+            return -1;
+        }
+        if (mountMode == MOUNT_EXTERNAL_MULTIUSER_ALL) {
+            // Mount entire external storage tree for all users
+            if (mount(source, target, NULL, MS_BIND, NULL) == -1) {
+                SLOGE("Failed to mount %s to %s: %s", source, target, strerror(errno));
+                return -1;
+            }
+        } else {
+            // Only mount user-specific external storage
+            if (mount(source_user, target_user, NULL, MS_BIND, NULL) == -1) {
+                SLOGE("Failed to mount %s to %s: %s", source_user, target_user, strerror(errno));
+                return -1;
+            }
+        }
+        // Now that user is mounted, prepare and mount OBB storage
+        // into place for current user
+        char target_android[PATH_MAX];
+        char target_obb[PATH_MAX];
+        // /storage/emulated/0/Android
+        snprintf(target_android, PATH_MAX, "%s/%d/Android", target, userid);
+        // /storage/emulated/0/Android/obb
+        snprintf(target_obb, PATH_MAX, "%s/%d/Android/obb", target, userid);
+        if (fs_prepare_dir(target_android, 0000, 0, 0) == -1
+                || fs_prepare_dir(target_obb, 0000, 0, 0) == -1
+                || fs_prepare_dir(legacy, 0000, 0, 0) == -1) {
+            return -1;
+        }
+        if (mount(source_obb, target_obb, NULL, MS_BIND, NULL) == -1) {
+            SLOGE("Failed to mount %s to %s: %s", source_obb, target_obb, strerror(errno));
+            return -1;
+        }
+        // Finally, mount user-specific path into place for legacy users
+        if (mount(target_user, legacy, NULL, MS_BIND | MS_REC, NULL) == -1) {
+            SLOGE("Failed to mount %s to %s: %s", target_user, legacy, strerror(errno));
+            return -1;
+        }
+    } else {
+        SLOGE("Mount mode %d unsupported", mountMode);
+        return -1;
+    }
+    return 0;
+}
+```
+
+
 [文档说明](https://source.android.com/devices/storage/traditional#multi-user-external-storage)
 
 > The default platform implementation of this feature leverages Linux kernel namespaces to create isolated mount tables for each Zygote-forked process, and then uses bind mounts to offer the correct user-specific primary external storage into that private namespace.
-> 
 > 
 > At boot, the system mounts a single emulated external storage FUSE daemon at EMULATED_STORAGE_SOURCE, which is hidden from apps. After the Zygote forks, it bind mounts the appropriate user-specific subdirectory from under the FUSE daemon to EMULATED_STORAGE_TARGET so that external storage paths resolve correctly for the app. Because an app lacks accessible mount points for other users' storage, they can only access storage for the user it was started as.
 
