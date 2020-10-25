@@ -474,7 +474,7 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
     return 0;
 }
 ```
-<iframe frameborder="0" style="width:100%;height:100%;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
+<iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
 
 android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限
 
