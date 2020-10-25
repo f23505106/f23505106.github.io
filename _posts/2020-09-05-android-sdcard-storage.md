@@ -48,7 +48,7 @@ drwxrwx--x 2 root sdcard_rw 4096 2020-09-01 11:16 Ringtones
 综合看来存储有两类，一类是app自己使用的数据，不用来分享位于Android目录，一类是多媒体类，照片、视频，等在所有应用之间共享。
 
 
-android存储的发展历程[^history-ref].
+android存储的发展历程参考1[^history-ref]参考2[^wetest-ref].
 
 android 1.0开始读写sdcard不需要任何权限，sdcard使用mountd进行mount.
 
@@ -476,7 +476,61 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
 ```
 <iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
 
-android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限
+应用获取sdcard路径的逻辑[Environment.java](https://android.googlesource.com/platform/frameworks/base/+/android-4.2_r1/core/java/android/os/Environment.java)
+```java
+//按顺序尝试下列目录
+// /storage/emulated/<user-id>
+// /storage/emulated/legacy
+// /storage/sdcard0
+public class Environment {
+    private static final String ENV_EXTERNAL_STORAGE = "EXTERNAL_STORAGE";
+    private static final String ENV_EMULATED_STORAGE_TARGET = "EMULATED_STORAGE_TARGET";
+    private static UserEnvironment sCurrentUser;
+    public static File getExternalStorageDirectory() {
+        throwIfSystem();
+        return sCurrentUser.getExternalStorageDirectory();
+    }
+    public static class UserEnvironment {
+        public UserEnvironment(int userId) {
+            String rawExternalStorage = System.getenv(ENV_EXTERNAL_STORAGE);// /storage/emulated/legacy
+            String rawEmulatedStorageTarget = System.getenv(ENV_EMULATED_STORAGE_TARGET);// /storage/emulated
+
+            if (!TextUtils.isEmpty(rawEmulatedStorageTarget)) {
+                // /storage/emulated/0
+                mExternalStorage = buildPath(emulatedBase, rawUserId);
+            } else {
+                // Device has physical external storage; use plain paths.
+                if (TextUtils.isEmpty(rawExternalStorage)) {
+                    rawExternalStorage = "/storage/sdcard0";
+                }
+                mExternalStorage = new File(rawExternalStorage);
+            }
+        }
+        public File getExternalStorageDirectory() {
+            return mExternalStorage;
+        }
+    }
+}
+```
+
+android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework）。修改了fuse的实现，在实际读取时为对应的[目录赋予相应的权限](https://android.googlesource.com/platform/system/core/+/dfe0cbab3f9039f34af1dc9e31faf8155737ec2d%5E%21/#F2)
+
+```
+ * rwxrwx--x root:sdcard_rw     /
+ * rwxrwx--- root:sdcard_pics   /Pictures
+ * rwxrwx--- root:sdcard_av     /Music
+ *
+ * rwxrwx--x root:sdcard_rw     /Android
+ * rwxrwx--x root:sdcard_rw     /Android/data
+ * rwxrwx--- u0_a12:sdcard_rw   /Android/data/com.example
+ * rwxrwx--x root:sdcard_rw     /Android/obb/
+ * rwxrwx--- u0_a12:sdcard_rw   /Android/obb/com.example
+ *
+ * rwxrwx--- root:sdcard_all    /Android/user
+ * rwxrwx--x root:sdcard_rw     /Android/user/10
+ * rwxrwx--- u10_a12:sdcard_rw  /Android/user/10/Android/data/com.example
+```
+
 
 
 
@@ -488,3 +542,5 @@ android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<p
 
 
 [^history-ref]: [ANDROID'S STORAGE JOURNEY](https://android.stackexchange.com/questions/214288/how-to-stop-apps-writing-to-android-folder-on-the-sd-card/218469#218469)
+
+[^wetest-ref]: [Android外部存储](https://wetest.qq.com/lab/view/368.html?from=coop_gad)
