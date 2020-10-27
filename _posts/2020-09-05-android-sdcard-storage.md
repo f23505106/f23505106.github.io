@@ -518,7 +518,7 @@ lrwxrwxrwx root     root              2014-03-08 07:34 legacy -> /mnt/shell/emul
 ```
 
 
-android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework）。修改了fuse的实现，在实际读取时为对应的[目录赋予相应的权限](https://android.googlesource.com/platform/system/core/+/dfe0cbab3f9039f34af1dc9e31faf8155737ec2d%5E%21/#F2)
+android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework）。修改了fuse的实现，在实际读取时为对应的[目录赋予相应的权限](https://android.googlesource.com/platform/system/core/+/dfe0cbab3f9039f34af1dc9e31faf8155737ec2d%5E%21/)
 
 [init.rc](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.4_r1/rootdir/init.rc)
 
