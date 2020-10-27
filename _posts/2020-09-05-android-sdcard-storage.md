@@ -518,7 +518,15 @@ lrwxrwxrwx root     root              2014-03-08 07:34 legacy -> /mnt/shell/emul
 ```
 
 
-android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework）。修改了fuse的实现，在实际读取时为对应的[目录赋予相应的权限](https://android.googlesource.com/platform/system/core/+/dfe0cbab3f9039f34af1dc9e31faf8155737ec2d%5E%21/)
+android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework。
+
+除了之前的目录结构外引入了一套新的目录结构，DERIVE_NONE,DERIVE_LEGACY,DERIVE_UNIFIED。
+
+* DERIVE_NONE 相当于Android 1.5-4.1引入AID_SDCARD_R之前的模式，整个sdcard通过AID_SDCARD_RW控制是否可以写，任何程序都可以读
+* DERIVE_LEGACY 相当于4.2之后的目录结构，sdcard根目录下是用户的目录0，1等，0下面是用户看到的sdcard的目录结构，obb和0，1目录是同级的，所有用户共享。
+* DERIVE_UNIFIED 新引入，sdcard根目录下是用户看到的sdcard的目录结构，多用户的数据位于Android/user目录下
+
+具体使用那种模式在init里启动sdcard的服务时候通过参数传入，-l表示使用DERIVE_LEGACY，只见过使用这种模式的。
 
 [init.rc](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.4_r1/rootdir/init.rc)
 
@@ -536,10 +544,15 @@ android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<p
 service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
     class late_start
 ```
+为了达到任何应用访问应用对应的目录（/sdcard/Android/<pkg>/）不需要权限，原来的AID_SDCARD_R控制模式必须改变，需要使用新的sdcard读写权限的实现模式。
+
+* 首先是放开了storage目录other的执行权限，意味着不用申请读取sdcard权限，只要对应文件的读取权限就可以读取文件。
+* 通过读取"/data/system/packages.list"将读写进程的uid和对应的/sdcard/Android/<pkg>/目录联系起来。
+* 文件的写权限不再由文件对应的标志位控制，而是在写文件时动态判断是不是可以写入。
 
 
 
-
+https://app.diagrams.net/#Hf23505106%2Fdrawio%2Fmaster%2Fandroid-4.4-fuse
 
 
 
