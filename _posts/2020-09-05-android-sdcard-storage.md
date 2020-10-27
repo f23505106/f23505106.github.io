@@ -321,7 +321,7 @@ android 4.1增加了sdcard读取的[权限](https://developer.android.com/refere
 +
 ```
 
-android 4.2开始支持多用户，修改了sdcard读取权限的实现方式，读取sdcard的实现由[zygot通过bind mount实现](https://android.googlesource.com/device/samsung/tuna/+/a3471cd8e45f43704c882ddff985df7818971e3a%5E%21/#F0)
+android 4.2开始支持多用户。
 
 [init.tuna.rc](https://android.googlesource.com/device/samsung/tuna/+/refs/tags/android-4.2_r1/init.tuna.rc)
 
@@ -474,7 +474,7 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
     return 0;
 }
 ```
-<iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
+<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?target=blank&highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
 
 应用获取sdcard路径的逻辑[Environment.java](https://android.googlesource.com/platform/frameworks/base/+/android-4.2_r1/core/java/android/os/Environment.java)
 ```java
@@ -512,23 +512,29 @@ public class Environment {
     }
 }
 ```
+```
+shell@klte:/ $ ls -l /storage/emulated/                                        
+lrwxrwxrwx root     root              2014-03-08 07:34 legacy -> /mnt/shell/emulated/0
+```
+
 
 android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<pkg>/）不需要声明权限，增加了Context.getExternalFilesDirs() 接口，可以获取应用在主外部存储和其他二级外部存储下的files路径，引入存储访问框架（SAF，Storage Access Framework）。修改了fuse的实现，在实际读取时为对应的[目录赋予相应的权限](https://android.googlesource.com/platform/system/core/+/dfe0cbab3f9039f34af1dc9e31faf8155737ec2d%5E%21/#F2)
 
+[init.rc](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.4_r1/rootdir/init.rc)
+
 ```
- * rwxrwx--x root:sdcard_rw     /
- * rwxrwx--- root:sdcard_pics   /Pictures
- * rwxrwx--- root:sdcard_av     /Music
- *
- * rwxrwx--x root:sdcard_rw     /Android
- * rwxrwx--x root:sdcard_rw     /Android/data
- * rwxrwx--- u0_a12:sdcard_rw   /Android/data/com.example
- * rwxrwx--x root:sdcard_rw     /Android/obb/
- * rwxrwx--- u0_a12:sdcard_rw   /Android/obb/com.example
- *
- * rwxrwx--- root:sdcard_all    /Android/user
- * rwxrwx--x root:sdcard_rw     /Android/user/10
- * rwxrwx--- u10_a12:sdcard_rw  /Android/user/10/Android/data/com.example
+    # See storage config details at http://source.android.com/tech/storage/
+    mkdir /mnt/shell 0700 shell shell
+    mkdir /mnt/media_rw 0700 media_rw media_rw
+    mkdir /storage 0751 root sdcard_r
+```
+
+[init.hammerhead.rc](https://android.googlesource.com/device/lge/hammerhead/+/refs/tags/android-4.4_r1/init.hammerhead.rc)
+
+```
+# virtual sdcard daemon running as media_rw (1023)
+service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
+    class late_start
 ```
 
 
@@ -542,5 +548,8 @@ android 4.4开始应用读写在外部存储的应用目录（/sdcard/Android/<p
 
 
 [^history-ref]: [ANDROID'S STORAGE JOURNEY](https://android.stackexchange.com/questions/214288/how-to-stop-apps-writing-to-android-folder-on-the-sd-card/218469#218469)
-
 [^wetest-ref]: [Android外部存储](https://wetest.qq.com/lab/view/368.html?from=coop_gad)
+[^SDCardFS-FUSE][Diving into SDCardFS: How Google’s FUSE Replacement Will Reduce I/O Overhead](https://www.xda-developers.com/diving-into-sdcardfs-how-googles-fuse-replacement-will-reduce-io-overhead/)
+[Android M 外部存储剖析](http://kernel.meizu.com/android-m-external-storage.html)
+[What is /storage/emulated/0/?](https://android.stackexchange.com/questions/205430/what-is-storage-emulated-0/205494#205494)
+[External Blues: Google Has Brought Big Changes To SD Cards In KitKat, And Even Samsung Is Implementing Them](https://www.androidpolice.com/2014/02/17/external-blues-google-has-brought-big-changes-to-sd-cards-in-kitkat-and-even-samsung-may-be-implementing-them/)
