@@ -474,7 +474,7 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
     return 0;
 }
 ```
-<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?target=blank&highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
+<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
 
 应用获取sdcard路径的逻辑[Environment.java](https://android.googlesource.com/platform/frameworks/base/+/android-4.2_r1/core/java/android/os/Environment.java)
 ```java
