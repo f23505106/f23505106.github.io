@@ -550,12 +550,246 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
 * 通过读取"/data/system/packages.list"将读写进程的uid和对应的/sdcard/Android/<pkg>/目录联系起来。
 * 文件的写权限不再由文件对应的标志位控制，而是在写文件时动态判断是不是可以写入。
 
+对应的目录权限如下
+<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-4.4-fuse&layers=1&nav=1&title=android-4.4-fuse#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid-4.4-fuse"></iframe>
+
+```
+shell@klte:/ $ ls -l
+drwxrwxr-x root     system            2014-03-09 15:05 mnt
+    lrwxrwxrwx root     root              2014-03-09 15:05 sdcard -> /storage/emulated/legacy
+    drwxr-x--- shell    shell             2014-03-09 15:05 shell
+        drwxrwx--x root     sdcard_r          2014-01-01 08:00 emulated
+            drwxrwx--x root     sdcard_r          2020-10-14 19:23 0
+                drwxrwx--x root     sdcard_r          2020-10-27 17:08 data
+                    drwxrwx--- u0_a39   sdcard_r          2020-01-17 17:48 com.android.providers.downloads
+                    drwxrwx--- root     sdcard_r          2020-01-17 17:48 com.android.vending
+                    drwxrwx--- u0_a179  sdcard_r          2020-08-27 10:34 com.devopsapp
+                    drwxrwx--- u0_a619  sdcard_r          2020-01-17 17:48 com.excean.gspace
+                drwxrwx--x root     sdcard_r          2020-07-06 11:34 obb
+            drwxrwx--x root     sdcard_r          2020-07-06 11:34 obb
+lrwxrwxrwx root     root              2014-03-09 15:05 sdcard -> /storage/emulated/legacy
+drwxr-x--x root     sdcard_r          2014-03-09 15:05 storage
+    lrwxrwxrwx root     root              2014-03-09 15:05 sdcard0 -> /storage/emulated/legacy
+    dr-xr-xr-x root     root              2014-03-09 15:05 emulated
+        lrwxrwxrwx root     root              2014-03-09 15:05 legacy -> /mnt/shell/emulated/0
+```
+仅从权限看，只要有sdcard_r权限就可以读写所有sdcard上的文件，实际并不能写，具体是在FUSE里在写文件时进行了二次判断，以mkdir为例。
+
+[sdcard.c](https://android.googlesource.com/platform/system/core/+/refs/tags/android-4.4_r1/sdcard/sdcard.c)
+
+```c
+static int handle_mkdir(struct fuse* fuse, struct fuse_handler* handler,
+        const struct fuse_in_header* hdr, const struct fuse_mkdir_in* req, const char* name)
+{
+    bool has_rw;
+    has_rw = get_caller_has_rw_locked(fuse, hdr);//这里是通过初始化的时候从系统获取的应用是不是有sdcard_rw权限
+    if (!check_caller_access_to_name(fuse, hdr, parent_node, name, W_OK, has_rw)) {//一般取决于has_rw
+        return -EACCES;
+    }
+    __u32 mode = (req->mode & (~0777)) | 0775;
+    if (mkdir(child_path, mode) < 0) {
+        return -errno;
+    }
+}
+/* Return if the calling UID holds sdcard_rw. */
+static bool get_caller_has_rw_locked(struct fuse* fuse, const struct fuse_in_header *hdr) {
+    appid_t appid = multiuser_get_app_id(hdr->uid);
+    return hashmapContainsKey(fuse->appid_with_rw, (void*) appid);
+}
+/* Kernel has already enforced everything we returned through
+ * derive_permissions_locked(), so this is used to lock down access
+ * even further, such as enforcing that apps hold sdcard_rw. */
+static bool check_caller_access_to_name(struct fuse* fuse,
+        const struct fuse_in_header *hdr, const struct node* parent_node,
+        const char* name, int mode, bool has_rw) {
+    if (mode & W_OK) {
+        return has_rw;
+    }
+    /* No extra permissions to enforce */
+    return true;
+}
+```
+可见当应用没有sdcard_rw权限进行写操作的时候会返回-EACCES错误。
 
 
-https://app.diagrams.net/#Hf23505106%2Fdrawio%2Fmaster%2Fandroid-4.4-fuse
+android 6.0 外部存储支持动态权限管理，即用户可以随时赋予应用读写sdcard的权限，也可以随时移除对应权限。
 
+[init.rc](https://android.googlesource.com/platform/system/core/+/refs/tags/android-6.0.0_r1/rootdir/init.rc)
 
+```
+    mkdir /mnt 0755 root system
+    mount tmpfs tmpfs /mnt mode=0755,uid=0,gid=1000
 
+    mkdir /mnt/user 0755 root root
+    mkdir /mnt/user/0 0755 root root
+    mkdir /mnt/expand 0771 system system
+    # Storage views to support runtime permissions
+    mkdir /storage 0755 root root
+    mkdir /mnt/runtime 0700 root root
+    mkdir /mnt/runtime/default 0755 root root
+    mkdir /mnt/runtime/default/self 0755 root root
+    mkdir /mnt/runtime/read 0755 root root
+    mkdir /mnt/runtime/read/self 0755 root root
+    mkdir /mnt/runtime/write 0755 root root
+    mkdir /mnt/runtime/write/self 0755 root root
+    # Symlink to keep legacy apps working in multi-user world
+    symlink /storage/self/primary /sdcard
+    symlink /mnt/user/0/primary /mnt/runtime/default/self/primary
+```
+<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-6.0-storage&layers=1&nav=1&title=android-6.0-storage#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid-6.0-storage"></iframe>
+
+[EmulatedVolume.cpp](https://android.googlesource.com/platform/system/vold/+/refs/tags/android-6.0.1_r1/EmulatedVolume.cpp)
+
+```cpp
+static const char* kFusePath = "/system/bin/sdcard";
+status_t EmulatedVolume::doMount() {
+    std::string label = mLabel;//"emulated"
+
+    mFuseDefault = StringPrintf("/mnt/runtime/default/%s", label.c_str());
+    mFuseRead = StringPrintf("/mnt/runtime/read/%s", label.c_str());
+    mFuseWrite = StringPrintf("/mnt/runtime/write/%s", label.c_str());
+
+    if (fs_prepare_dir(mFuseDefault.c_str(), 0700, AID_ROOT, AID_ROOT) ||
+            fs_prepare_dir(mFuseRead.c_str(), 0700, AID_ROOT, AID_ROOT) ||
+            fs_prepare_dir(mFuseWrite.c_str(), 0700, AID_ROOT, AID_ROOT)) {
+        PLOG(ERROR) << getId() << " failed to create mount points";
+        return -errno;
+    }
+
+    if (!(mFusePid = fork())) {
+        if (execl(kFusePath, kFusePath,
+                "-u", "1023", // AID_MEDIA_RW
+                "-g", "1023", // AID_MEDIA_RW
+                "-m",
+                "-w",
+                mRawPath.c_str(),//"/data/media"
+                label.c_str(),
+                NULL)) {
+        }
+    }
+
+    return OK;
+}
+```
+[VolumeManager.cpp](https://android.googlesource.com/platform/system/vold/+/refs/tags/android-6.0.1_r1/VolumeManager.cpp)
+
+```cpp
+//把storage/emulated/0/ 创建软链接到mnt/user/0/primary
+int VolumeManager::linkPrimary(userid_t userId) {
+    std::string source(mPrimary->getPath());
+    if (mPrimary->getType() == android::vold::VolumeBase::Type::kEmulated) {
+        source = StringPrintf("%s/%d", source.c_str(), userId);
+        fs_prepare_dir(source.c_str(), 0755, AID_ROOT, AID_ROOT);
+    }
+    std::string target(StringPrintf("/mnt/user/%d/primary", userId));
+    if (TEMP_FAILURE_RETRY(unlink(target.c_str()))) {
+        if (errno != ENOENT) {
+            SLOGW("Failed to unlink %s: %s", target.c_str(), strerror(errno));
+        }
+    }
+    LOG(DEBUG) << "Linking " << source << " to " << target;
+    if (TEMP_FAILURE_RETRY(symlink(source.c_str(), target.c_str()))) {
+        SLOGW("Failed to link %s to %s: %s", source.c_str(), target.c_str(),
+                strerror(errno));
+        return -errno;
+    }
+    return 0;
+}
+```
+[sdcard.c](https://android.googlesource.com/platform/system/core/+/refs/tags/android-6.0.0_r1/sdcard/sdcard.c)
+
+```cpp
+static void run(const char* source_path, const char* label, uid_t uid,
+        gid_t gid, userid_t userid, bool multi_user, bool full_write) {
+
+    snprintf(fuse_default.dest_path, PATH_MAX, "/mnt/runtime/default/%s", label);
+    snprintf(fuse_read.dest_path, PATH_MAX, "/mnt/runtime/read/%s", label);
+    snprintf(fuse_write.dest_path, PATH_MAX, "/mnt/runtime/write/%s", label);
+    handler_default.fuse = &fuse_default;
+    handler_read.fuse = &fuse_read;
+    handler_write.fuse = &fuse_write;
+    handler_default.token = 0;
+    handler_read.token = 1;
+    handler_write.token = 2;
+
+    if (multi_user) {
+        /* Multi-user storage is fully isolated per user, so "other"
+         * permissions are completely masked off. */
+        if (fuse_setup(&fuse_default, AID_SDCARD_RW, 0006)
+                || fuse_setup(&fuse_read, AID_EVERYBODY, 0027)
+                || fuse_setup(&fuse_write, AID_EVERYBODY, full_write ? 0007 : 0027)) {
+            ERROR("failed to fuse_setup\n");
+            exit(1);
+        }
+    } 
+}
+static int fuse_setup(struct fuse* fuse, gid_t gid, mode_t mask) {
+    char opts[256];
+    fuse->fd = open("/dev/fuse", O_RDWR);
+    if (fuse->fd == -1) {
+        ERROR("failed to open fuse device: %s\n", strerror(errno));
+        return -1;
+    }
+    umount2(fuse->dest_path, MNT_DETACH);
+    snprintf(opts, sizeof(opts),
+            "fd=%i,rootmode=40000,default_permissions,allow_other,user_id=%d,group_id=%d",
+            fuse->fd, fuse->global->uid, fuse->global->gid);
+    if (mount("/dev/fuse", fuse->dest_path, "fuse", MS_NOSUID | MS_NODEV | MS_NOEXEC |
+            MS_NOATIME, opts) != 0) {
+        ERROR("failed to mount fuse filesystem: %s\n", strerror(errno));
+        return -1;
+    }
+    fuse->gid = gid;
+    fuse->mask = mask;
+    return 0;
+}
+```
+
+[com_android_internal_os_Zygote.cpp](https://android.googlesource.com/platform/frameworks/base.git/+/refs/tags/android-6.0.1_r1/core/jni/com_android_internal_os_Zygote.cpp.cpp)
+
+```cpp
+// Create a private mount namespace and bind mount appropriate emulated
+// storage for the given user.
+static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
+        bool force_mount_namespace) {
+    // See storage config details at http://source.android.com/tech/storage/
+    // Create a second private mount namespace for our process
+    if (unshare(CLONE_NEWNS) == -1) {
+        ALOGW("Failed to unshare(): %s", strerror(errno));
+        return false;
+    }
+    // Unmount storage provided by root namespace and mount requested view
+    UnmountTree("/storage");
+    String8 storageSource;
+    if (mount_mode == MOUNT_EXTERNAL_DEFAULT) {
+        storageSource = "/mnt/runtime/default";
+    } else if (mount_mode == MOUNT_EXTERNAL_READ) {
+        storageSource = "/mnt/runtime/read";
+    } else if (mount_mode == MOUNT_EXTERNAL_WRITE) {
+        storageSource = "/mnt/runtime/write";
+    } else {
+        // Sane default of no storage visible
+        return true;
+    }
+    if (TEMP_FAILURE_RETRY(mount(storageSource.string(), "/storage",
+            NULL, MS_BIND | MS_REC | MS_SLAVE, NULL)) == -1) {
+        ALOGW("Failed to mount %s to /storage: %s", storageSource.string(), strerror(errno));
+        return false;
+    }
+    // Mount user-specific symlink helper into place
+    userid_t user_id = multiuser_get_user_id(uid);
+    const String8 userSource(String8::format("/mnt/user/%d", user_id));
+    if (fs_prepare_dir(userSource.string(), 0751, 0, 0) == -1) {
+        return false;
+    }
+    if (TEMP_FAILURE_RETRY(mount(userSource.string(), "/storage/self",
+            NULL, MS_BIND, NULL)) == -1) {
+        ALOGW("Failed to mount %s to /storage/self: %s", userSource.string(), strerror(errno));
+        return false;
+    }
+    return true;
+}
+```
 
 <iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-storage&layers=1&nav=1&title=android-storage#R5ZZRb5tADMc%2FDY%2BTgEto87im6TptkyYxbdrjDRy46cDsYkKyTz8TTAChZqvUrg99yvlv39n388nEU%2Bvi8M7pKv%2BEKVgv9NODp269MAyXYcQ%2FrXLslCBYrDolcyYVbRBi8xtE9EWtTQq7SSAhWjLVVEywLCGhiaadw2YatkU7zVrpDGZCnGg7V7%2BZlPJOvV76g34PJsv7zIEvnkL3wSLscp1iM5LUxlNrh0jdqjiswbb0ei7dvrsHvOfCHJT0Lxu%2Bblcquo9%2FLb7A5w%2Fl9%2Bp9jrdv5JQdHfsLQ8r3FxMd5Zhhqe1mUG8c1mUK7ak%2BW0PMR8SKxYDFn0B0lGbqmpClnAor3i2WJM5gxXZXQ5v4wav1dWLtErhwHyVPRLsM6ELc4twAfrqABZA78j4HVpPZT%2BvQ8oSyc9xAmRcC%2BhHQw1cKffmS0KXIvba1ZPLCyHK5N7tKl7zO2nVM6NqJIC7ONPbO%2BjZ0pUXc5IYgrvQJVsMD8XIHtDVZyUbCwMGdj9%2BDIzhcbsocomxQSqaNzNvwSuxmGF5BP5Hy0eCK%2FGfivphxJ6dTQ6Z9vSeaQvzRaP%2FKc8T%2BCdAG11O0KnpptMsZWv7CVKR%2FMMN16L31nxfvEzBdXP0%2FpmwOH9uTb%2FSfRW3%2BAA%3D%3D"></iframe>
 
