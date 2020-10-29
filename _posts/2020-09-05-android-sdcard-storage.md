@@ -745,7 +745,7 @@ static int fuse_setup(struct fuse* fuse, gid_t gid, mode_t mask) {
 }
 ```
 
-[com_android_internal_os_Zygote.cpp](https://android.googlesource.com/platform/frameworks/base.git/+/refs/tags/android-6.0.1_r1/core/jni/com_android_internal_os_Zygote.cpp.cpp)
+[com_android_internal_os_Zygote.cpp](https://android.googlesource.com/platform/frameworks/base.git/+/refs/tags/android-6.0.1_r1/core/jni/com_android_internal_os_Zygote.cpp)
 
 ```cpp
 // Create a private mount namespace and bind mount appropriate emulated
@@ -792,6 +792,14 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 ```
 
 ![android sdcard 6.0](https://raw.githubusercontent.com/f23505106/drawio/master/android-sdcard-6.0.svg)
+
+> # for services/daemons/processes in root/global namespace (VIEW = default)
+/sdcard >S> /storage/self/primary
+/storage >B> /mnt/runtime/default
+/mnt/runtime/default/self/primary >S> /mnt/user/USER-ID/primary
+/mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
+/storage/emulated >B> /mnt/runtime/default/emulated
+/mnt/runtime/default/emulated >E> /data/media
 
 <iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-storage&layers=1&nav=1&title=android-storage#R5ZZRb5tADMc%2FDY%2BTgEto87im6TptkyYxbdrjDRy46cDsYkKyTz8TTAChZqvUrg99yvlv39n388nEU%2Bvi8M7pKv%2BEKVgv9NODp269MAyXYcQ%2FrXLslCBYrDolcyYVbRBi8xtE9EWtTQq7SSAhWjLVVEywLCGhiaadw2YatkU7zVrpDGZCnGg7V7%2BZlPJOvV76g34PJsv7zIEvnkL3wSLscp1iM5LUxlNrh0jdqjiswbb0ei7dvrsHvOfCHJT0Lxu%2Bblcquo9%2FLb7A5w%2Fl9%2Bp9jrdv5JQdHfsLQ8r3FxMd5Zhhqe1mUG8c1mUK7ak%2BW0PMR8SKxYDFn0B0lGbqmpClnAor3i2WJM5gxXZXQ5v4wav1dWLtErhwHyVPRLsM6ELc4twAfrqABZA78j4HVpPZT%2BvQ8oSyc9xAmRcC%2BhHQw1cKffmS0KXIvba1ZPLCyHK5N7tKl7zO2nVM6NqJIC7ONPbO%2BjZ0pUXc5IYgrvQJVsMD8XIHtDVZyUbCwMGdj9%2BDIzhcbsocomxQSqaNzNvwSuxmGF5BP5Hy0eCK%2FGfivphxJ6dTQ6Z9vSeaQvzRaP%2FKc8T%2BCdAG11O0KnpptMsZWv7CVKR%2FMMN16L31nxfvEzBdXP0%2FpmwOH9uTb%2FSfRW3%2BAA%3D%3D"></iframe>
 
