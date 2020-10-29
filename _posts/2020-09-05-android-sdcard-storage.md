@@ -640,6 +640,10 @@ android 6.0 外部存储支持动态权限管理，即用户可以随时赋予�
     # Symlink to keep legacy apps working in multi-user world
     symlink /storage/self/primary /sdcard
     symlink /mnt/user/0/primary /mnt/runtime/default/self/primary
+
+on post-fs
+    # Mount default storage into root namespace
+    mount none /mnt/runtime/default /storage slave bind rec
 ```
 ![android 6.0 storage](https://raw.githubusercontent.com/f23505106/drawio/master/android-6.0-storage.svg)
 
