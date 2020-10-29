@@ -474,7 +474,7 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
     return 0;
 }
 ```
-<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid_sdcard&layers=1&nav=1&title=android_sdcard#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid_sdcard"></iframe>
+![android 4.2 sdcard](https://raw.githubusercontent.com/f23505106/drawio/master/android_sdcard.svg)
 
 应用获取sdcard路径的逻辑[Environment.java](https://android.googlesource.com/platform/frameworks/base/+/android-4.2_r1/core/java/android/os/Environment.java)
 ```java
@@ -551,7 +551,7 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
 * 文件的写权限不再由文件对应的标志位控制，而是在写文件时动态判断是不是可以写入。
 
 对应的目录权限如下
-<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-4.4-fuse&layers=1&nav=1&title=android-4.4-fuse#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid-4.4-fuse"></iframe>
+![android 4.4 fuse](https://raw.githubusercontent.com/f23505106/drawio/master/android-4.4-fuse.svg)
 
 ```
 shell@klte:/ $ ls -l
@@ -636,7 +636,7 @@ android 6.0 外部存储支持动态权限管理，即用户可以随时赋予�
     symlink /storage/self/primary /sdcard
     symlink /mnt/user/0/primary /mnt/runtime/default/self/primary
 ```
-<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-6.0-storage&layers=1&nav=1&title=android-6.0-storage#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid-6.0-storage"></iframe>
+![android 6.0 storage](https://raw.githubusercontent.com/f23505106/drawio/master/android-6.0-storage.svg)
 
 [EmulatedVolume.cpp](https://android.googlesource.com/platform/system/vold/+/refs/tags/android-6.0.1_r1/EmulatedVolume.cpp)
 
@@ -791,7 +791,7 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 }
 ```
 
-<iframe frameborder="0" style="width:100%;height:464px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-sdcard-6.0&layers=1&nav=1&title=android-sdcard-6.0#Uhttps%3A%2F%2Fraw.githubusercontent.com%2Ff23505106%2Fdrawio%2Fmaster%2Fandroid-sdcard-6.0"></iframe>
+![android sdcard 6.0](https://raw.githubusercontent.com/f23505106/drawio/master/android-sdcard-6.0.svg)
 
 <iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-storage&layers=1&nav=1&title=android-storage#R5ZZRb5tADMc%2FDY%2BTgEto87im6TptkyYxbdrjDRy46cDsYkKyTz8TTAChZqvUrg99yvlv39n388nEU%2Bvi8M7pKv%2BEKVgv9NODp269MAyXYcQ%2FrXLslCBYrDolcyYVbRBi8xtE9EWtTQq7SSAhWjLVVEywLCGhiaadw2YatkU7zVrpDGZCnGg7V7%2BZlPJOvV76g34PJsv7zIEvnkL3wSLscp1iM5LUxlNrh0jdqjiswbb0ei7dvrsHvOfCHJT0Lxu%2Bblcquo9%2FLb7A5w%2Fl9%2Bp9jrdv5JQdHfsLQ8r3FxMd5Zhhqe1mUG8c1mUK7ak%2BW0PMR8SKxYDFn0B0lGbqmpClnAor3i2WJM5gxXZXQ5v4wav1dWLtErhwHyVPRLsM6ELc4twAfrqABZA78j4HVpPZT%2BvQ8oSyc9xAmRcC%2BhHQw1cKffmS0KXIvba1ZPLCyHK5N7tKl7zO2nVM6NqJIC7ONPbO%2BjZ0pUXc5IYgrvQJVsMD8XIHtDVZyUbCwMGdj9%2BDIzhcbsocomxQSqaNzNvwSuxmGF5BP5Hy0eCK%2FGfivphxJ6dTQ6Z9vSeaQvzRaP%2FKc8T%2BCdAG11O0KnpptMsZWv7CVKR%2FMMN16L31nxfvEzBdXP0%2FpmwOH9uTb%2FSfRW3%2BAA%3D%3D"></iframe>
 
