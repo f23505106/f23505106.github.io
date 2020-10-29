@@ -553,9 +553,10 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
 对应的目录权限如下
 ![android 4.4 fuse](https://raw.githubusercontent.com/f23505106/drawio/master/android-4.4-fuse.svg)
 
-> /sdcard >S> /storage/emulated/legacy >S> /mnt/shell/emulated/0
-> /mnt/shell/emulated >E> /data/media
-> >S> for symlink, >E> for emulated and >B> for bind mount
+> * /sdcard >S> /storage/emulated/legacy >S> /mnt/shell/emulated/0
+> * /mnt/shell/emulated >E> /data/media
+
+> S> for symlink, >E> for emulated and >B> for bind mount
 
 ```
 shell@klte:/ $ ls -l
@@ -799,20 +800,21 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 
 >  for (Java) Android apps (running inside zygote virtual machine)
 > "/storage to VIEW" bind mount is inside a separate mount namespace for every app
-> /sdcard >S> /storage/self/primary
-> /storage/self >B> /mnt/user/USER-ID
-> /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
-> /storage/emulated >B> /mnt/runtime/VIEW/emulated
-> /mnt/runtime/VIEW/emulated >E> /data/media
+> * /sdcard >S> /storage/self/primary
+> * /storage/self >B> /mnt/user/USER-ID
+> * /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
+> * /storage/emulated >B> /mnt/runtime/VIEW/emulated
+> * /mnt/runtime/VIEW/emulated >E> /data/media
 > 
 > for services/daemons/processes in root/global namespace (VIEW = default)
-> /sdcard >S> /storage/self/primary
-> /storage >B> /mnt/runtime/default
-> /mnt/runtime/default/self/primary >S> /mnt/user/USER-ID/primary
-> /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
-> /storage/emulated >B> /mnt/runtime/default/emulated
-> /mnt/runtime/default/emulated >E> /data/media
-> * >S> for symlink, >E> for emulated and >B> for bind mount
+> * /sdcard >S> /storage/self/primary
+> * /storage >B> /mnt/runtime/default
+> * /mnt/runtime/default/self/primary >S> /mnt/user/USER-ID/primary
+> * /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
+> * /storage/emulated >B> /mnt/runtime/default/emulated
+> * /mnt/runtime/default/emulated >E> /data/media
+
+> * S> for symlink, >E> for emulated and >B> for bind mount
 > * USER-ID of current user in case of Multiple Users or Work Profile, normally 0 i.e. that of device owner
 > * VIEW is one of read (for apps with permission.READ_EXTERNAL_STORAGE) or write
 
