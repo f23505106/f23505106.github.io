@@ -553,6 +553,10 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
 对应的目录权限如下
 ![android 4.4 fuse](https://raw.githubusercontent.com/f23505106/drawio/master/android-4.4-fuse.svg)
 
+> /sdcard >S> /storage/emulated/legacy >S> /mnt/shell/emulated/0
+> /mnt/shell/emulated >E> /data/media
+> >S> for symlink, >E> for emulated and >B> for bind mount
+
 ```
 shell@klte:/ $ ls -l
 drwxrwxr-x root     system            2014-03-09 15:05 mnt
@@ -793,13 +797,24 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 
 ![android sdcard 6.0](https://raw.githubusercontent.com/f23505106/drawio/master/android-sdcard-6.0.svg)
 
-> # for services/daemons/processes in root/global namespace (VIEW = default)
-/sdcard >S> /storage/self/primary
-/storage >B> /mnt/runtime/default
-/mnt/runtime/default/self/primary >S> /mnt/user/USER-ID/primary
-/mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
-/storage/emulated >B> /mnt/runtime/default/emulated
-/mnt/runtime/default/emulated >E> /data/media
+>  for (Java) Android apps (running inside zygote virtual machine)
+> "/storage to VIEW" bind mount is inside a separate mount namespace for every app
+> /sdcard >S> /storage/self/primary
+> /storage/self >B> /mnt/user/USER-ID
+> /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
+> /storage/emulated >B> /mnt/runtime/VIEW/emulated
+> /mnt/runtime/VIEW/emulated >E> /data/media
+> 
+> for services/daemons/processes in root/global namespace (VIEW = default)
+> /sdcard >S> /storage/self/primary
+> /storage >B> /mnt/runtime/default
+> /mnt/runtime/default/self/primary >S> /mnt/user/USER-ID/primary
+> /mnt/user/USER-ID/primary >S> /storage/emulated/USER-ID
+> /storage/emulated >B> /mnt/runtime/default/emulated
+> /mnt/runtime/default/emulated >E> /data/media
+> * >S> for symlink, >E> for emulated and >B> for bind mount
+> * USER-ID of current user in case of Multiple Users or Work Profile, normally 0 i.e. that of device owner
+> * VIEW is one of read (for apps with permission.READ_EXTERNAL_STORAGE) or write
 
 <iframe frameborder="0" style="width:100%;height:423px;" src="https://viewer.diagrams.net/?highlight=0000ff&edit=https%3A%2F%2Fapp.diagrams.net%2F%23Hf23505106%252Fdrawio%252Fmaster%252Fandroid-storage&layers=1&nav=1&title=android-storage#R5ZZRb5tADMc%2FDY%2BTgEto87im6TptkyYxbdrjDRy46cDsYkKyTz8TTAChZqvUrg99yvlv39n388nEU%2Bvi8M7pKv%2BEKVgv9NODp269MAyXYcQ%2FrXLslCBYrDolcyYVbRBi8xtE9EWtTQq7SSAhWjLVVEywLCGhiaadw2YatkU7zVrpDGZCnGg7V7%2BZlPJOvV76g34PJsv7zIEvnkL3wSLscp1iM5LUxlNrh0jdqjiswbb0ei7dvrsHvOfCHJT0Lxu%2Bblcquo9%2FLb7A5w%2Fl9%2Bp9jrdv5JQdHfsLQ8r3FxMd5Zhhqe1mUG8c1mUK7ak%2BW0PMR8SKxYDFn0B0lGbqmpClnAor3i2WJM5gxXZXQ5v4wav1dWLtErhwHyVPRLsM6ELc4twAfrqABZA78j4HVpPZT%2BvQ8oSyc9xAmRcC%2BhHQw1cKffmS0KXIvba1ZPLCyHK5N7tKl7zO2nVM6NqJIC7ONPbO%2BjZ0pUXc5IYgrvQJVsMD8XIHtDVZyUbCwMGdj9%2BDIzhcbsocomxQSqaNzNvwSuxmGF5BP5Hy0eCK%2FGfivphxJ6dTQ6Z9vSeaQvzRaP%2FKc8T%2BCdAG11O0KnpptMsZWv7CVKR%2FMMN16L31nxfvEzBdXP0%2FpmwOH9uTb%2FSfRW3%2BAA%3D%3D"></iframe>
 
