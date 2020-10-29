@@ -550,7 +550,7 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
 * 通过读取"/data/system/packages.list"将读写进程的uid和对应的/sdcard/Android/<pkg>/目录联系起来。
 * 文件的写权限不再由文件对应的标志位控制，而是在写文件时动态判断是不是可以写入。
 
-对应的目录权限如下
+对应的目录权限如下[^android-6-path]
 ![android 4.4 fuse](https://raw.githubusercontent.com/f23505106/drawio/master/android-4.4-fuse.svg)
 
 > * /sdcard >S> /storage/emulated/legacy >S> /mnt/shell/emulated/0
@@ -828,6 +828,6 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 [^history-ref]: [ANDROID'S STORAGE JOURNEY](https://android.stackexchange.com/questions/214288/how-to-stop-apps-writing-to-android-folder-on-the-sd-card/218469#218469)
 [^wetest-ref]: [Android外部存储](https://wetest.qq.com/lab/view/368.html?from=coop_gad)
 [^SDCardFS-FUSE][Diving into SDCardFS: How Google’s FUSE Replacement Will Reduce I/O Overhead](https://www.xda-developers.com/diving-into-sdcardfs-how-googles-fuse-replacement-will-reduce-io-overhead/)
-[Android M 外部存储剖析](http://kernel.meizu.com/android-m-external-storage.html)
-[What is /storage/emulated/0/?](https://android.stackexchange.com/questions/205430/what-is-storage-emulated-0/205494#205494)
-[External Blues: Google Has Brought Big Changes To SD Cards In KitKat, And Even Samsung Is Implementing Them](https://www.androidpolice.com/2014/02/17/external-blues-google-has-brought-big-changes-to-sd-cards-in-kitkat-and-even-samsung-may-be-implementing-them/)
+[^meizu-android]: [Android M 外部存储剖析](http://kernel.meizu.com/android-m-external-storage.html)
+[^android-6-path]: [What is /storage/emulated/0/?](https://android.stackexchange.com/questions/205430/what-is-storage-emulated-0/205494#205494)
+[^sdcardfs]: [External Blues: Google Has Brought Big Changes To SD Cards In KitKat, And Even Samsung Is Implementing Them](https://www.androidpolice.com/2014/02/17/external-blues-google-has-brought-big-changes-to-sd-cards-in-kitkat-and-even-samsung-may-be-implementing-them/)
