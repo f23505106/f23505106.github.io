@@ -800,7 +800,7 @@ static bool MountEmulatedStorage(uid_t uid, jint mount_mode,
 }
 ```
 
-![android sdcard 6.0](https://raw.githubusercontent.com/f23505106/drawio/master/android-sdcard-6.0.svg)
+![android sdcard 6.0](https://raw.githubusercontent.com/f23505106/drawio/master/android-6.0-sdcard-struct.drawio)
 
 >  for (Java) Android apps (running inside zygote virtual machine)
 > "/storage to VIEW" bind mount is inside a separate mount namespace for every app
