@@ -476,8 +476,14 @@ static int mountEmulatedStorage(uid_t uid, u4 mountMode) {
 ```
 ![android 4.2 sdcard](https://raw.githubusercontent.com/f23505106/drawio/master/android_sdcard.svg)
 
+> no zygote process like adb
 > * /sdcard >S> /storage/emulated/legacy >S> /mnt/shell/emulated/0
 > * /mnt/shell/emulated >E> /data/media
+
+> zygote children process
+> * /sdcard >S> /storage/emulated/legacy >B> /mnt/shell/emulated/<user>
+> * /mnt/shell/emulated >E> /data/media
+
 
 > S> for symlink, >E> for emulated and >B> for bind mount
 
